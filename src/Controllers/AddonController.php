@@ -26,10 +26,22 @@ class AddonController
                 if (file_exists($configFile)) {
                     $config = Yaml::parseFile($configFile);
                     $hasLocalIcon = file_exists($dir . '/icon.png');
+                    
+                    $image = '';
+                    $dockerfile = $dir . '/Dockerfile';
+                    if (file_exists($dockerfile)) {
+                        $content = file_get_contents($dockerfile);
+                        if (preg_match('/^FROM\s+(.+)$/m', $content, $matches)) {
+                            $image = trim($matches[1]);
+                        }
+                    }
+
                     $addons[] = [
                         'slug' => $slug,
                         'name' => $config['name'] ?? $slug,
                         'version' => $config['version'] ?? 'unknown',
+                        'description' => $config['description'] ?? '',
+                        'image' => $image ?: ($config['image'] ?? ''),
                         'has_local_icon' => $hasLocalIcon
                     ];
                 }
@@ -52,7 +64,7 @@ class AddonController
         $configFile = $dataDir . '/' . $slug . '/config.yaml';
 
         if (!file_exists($configFile)) {
-            $response->getBody()->write(json_encode(['status' => 'error', 'message' => 'Add-on nicht gefunden']));
+            $response->getBody()->write(json_encode(['status' => 'error', 'message' => 'Add-on not found']));
             return $response->withHeader('Content-Type', 'application/json')->withStatus(404);
         }
 
@@ -230,16 +242,16 @@ class AddonController
     {
         $slug = $args['slug'];
         
-        // System-Addon darf nicht gelöscht werden
+        // System addon cannot be deleted
         if ($slug === 'haos_addon_converter') {
-            $response->getBody()->write(json_encode(['status' => 'error', 'message' => 'System-Add-on kann nicht gelöscht werden']));
+            $response->getBody()->write(json_encode(['status' => 'error', 'message' => 'System add-on cannot be deleted']));
             return $response->withHeader('Content-Type', 'application/json')->withStatus(403);
         }
 
         $addonDir = $this->getDataDir() . '/' . $slug;
 
         if (!is_dir($addonDir)) {
-            $response->getBody()->write(json_encode(['status' => 'error', 'message' => 'Add-on nicht gefunden']));
+            $response->getBody()->write(json_encode(['status' => 'error', 'message' => 'Add-on not found']));
             return $response->withHeader('Content-Type', 'application/json')->withStatus(404);
         }
 

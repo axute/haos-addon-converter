@@ -35,7 +35,7 @@ class GenerateController
         $isSelfConvert = $data['self_convert'] ?? false;
         
         if (empty($addonName) || empty($image)) {
-            $response->getBody()->write(json_encode(['status' => 'error', 'message' => 'Name und Image sind erforderlich']));
+            $response->getBody()->write(json_encode(['status' => 'error', 'message' => 'Name and image are required']));
             return $response->withHeader('Content-Type', 'application/json')->withStatus(400);
         }
         
