@@ -38,6 +38,7 @@ $app->get('/addons/{slug}/icon.png', function ($request, $response, $args) {
 $app->delete('/addons/{slug}', [AddonController::class, 'delete']);
 
 // Selbst-Konvertierung
+$app->get('/tags', [AddonController::class, 'getTags']);
 $app->post('/self-convert', [AddonController::class, 'selfConvert']);
 
 // Add-on Generierung

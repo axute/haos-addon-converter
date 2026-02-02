@@ -6,5 +6,4 @@ services:
       - "8985:80"
     volumes:
       - .:/var/www/html
-      - /var/www/html/vendor
     restart: unless-stopped

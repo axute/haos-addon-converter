@@ -132,26 +132,10 @@ class GenerateController
         // Dockerfile erstellen
         $dockerfileContent = "FROM $image\n";
         
-        // Wenn es sich um eine Selbst-Konvertierung handelt, müssen wir die Dateien kopieren
-        if ($isSelfConvert) {
-            $dockerfileContent = "FROM $image\n\n";
-            $dockerfileContent .= "RUN apt-get update && apt-get install -y unzip git && rm -rf /var/lib/apt/lists/*\n";
-            $dockerfileContent .= "WORKDIR /var/www/html\n";
-            $dockerfileContent .= "COPY . .\n";
-            $dockerfileContent .= "RUN composer install --no-interaction --optimize-autoloader\n";
-            $dockerfileContent .= "RUN mkdir -p data && chown -R www-data:www-data data\n";
-            $dockerfileContent .= "ENTRYPOINT [\"entrypoint.sh\"]\n";
-        }
-        
         file_put_contents($addonPath . '/Dockerfile', $dockerfileContent);
         
         // repository.yaml im Haupt-data-Verzeichnis erstellen/aktualisieren (falls nicht vorhanden oder Standardwerte)
         $this->ensureRepositoryYaml($dataDir);
-
-        // Falls Selbst-Konvertierung, kopieren wir den aktuellen Code in das Zielverzeichnis
-        if ($isSelfConvert) {
-            $this->recursiveCopy(realpath(__DIR__ . '/../../'), $addonPath);
-        }
 
         $result = [
             'status' => 'success',

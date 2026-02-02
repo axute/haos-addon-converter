@@ -115,8 +115,60 @@ class AddonController
         return $response->withHeader('Content-Type', 'application/json');
     }
 
+    public function getTags(Request $request, Response $response): Response
+    {
+        $imageName = 'axute/haos-addon-converter';
+        $tags = ['latest'];
+
+        try {
+            $tokenUrl = "https://ghcr.io/token?scope=repository:$imageName:pull&service=ghcr.io";
+            $tokenJson = @file_get_contents($tokenUrl);
+            if ($tokenJson) {
+                $tokenData = json_decode($tokenJson, true);
+                $token = $tokenData['token'] ?? '';
+
+                if ($token) {
+                    $tagsUrl = "https://ghcr.io/v2/$imageName/tags/list";
+                    $opts = [
+                        'http' => [
+                            'method' => 'GET',
+                            'header' => "Authorization: Bearer $token\r\n"
+                        ]
+                    ];
+                    $context = stream_context_create($opts);
+                    $tagsJson = @file_get_contents($tagsUrl, false, $context);
+                    if ($tagsJson) {
+                        $tagsData = json_decode($tagsJson, true);
+                        if (isset($tagsData['tags']) && is_array($tagsData['tags'])) {
+                            $tags = $tagsData['tags'];
+                            // Sort tags, latest should be first or handled specially
+                            rsort($tags);
+                            // Ensure 'latest' is in there if not present (though it should be)
+                            if (!in_array('latest', $tags)) {
+                                array_unshift($tags, 'latest');
+                            } else {
+                                // Move latest to the front
+                                $tags = array_diff($tags, ['latest']);
+                                array_unshift($tags, 'latest');
+                            }
+                        }
+                    }
+                }
+            }
+        } catch (\Exception $e) {
+            // Fallback to ['latest']
+        }
+
+        $response->getBody()->write(json_encode($tags));
+        return $response->withHeader('Content-Type', 'application/json');
+    }
+
     public function selfConvert(Request $request, Response $response): Response
     {
+        $body = (string)$request->getBody();
+        $params = json_decode($body, true);
+        $tag = $params['tag'] ?? 'latest';
+
         $slug = 'haos_addon_converter';
         $configFile = $this->getDataDir() . '/' . $slug . '/config.yaml';
         $currentVersion = '1.0.0';
@@ -138,7 +190,7 @@ class AddonController
         // Daten für die Generierung vorbereiten
         $data = [
             'name' => 'HAOS Add-on Converter',
-            'image' => 'php:8.3-apache',
+            'image' => "ghcr.io/axute/haos-addon-converter:$tag",
             'description' => 'Web-Converter zum Konvertieren von Docker-Images in Home Assistant Add-ons.',
             'version' => $newVersion,
             'ingress' => true,
@@ -150,8 +202,7 @@ class AddonController
             'env_vars' => [
                 [
                     'key' => 'CONVERTER_DATA_DIR',
-                    'value' => '/addons',
-                    'userEditable' => false
+                    'value' => '/addons'
                 ]
             ]
         ];

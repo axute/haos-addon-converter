@@ -19,7 +19,7 @@ This tool is a web-based converter that transforms any Docker image into a Home 
   - **Note**: Environment variables are fixed within the add-on configuration and cannot be changed via the Home Assistant GUI after installation. This ensures maximum compatibility with existing Docker images without requiring internal modifications.
 - **Clean Dockerfiles**: The generated `Dockerfile` is kept minimal. It uses the specified base image and does not override the default `CMD` or `ENTRYPOINT` (unless during self-conversion), preserving the original image's behavior.
 - **Simplified Config**: The `config.yaml` is kept clean by omitting unused optional fields like `options` and `schema`.
-- **Self-Conversion**: The converter can export itself as a Home Assistant add-on with one click (including a special icon and `mdi:toy-brick` panel icon).
+- **Self-Conversion**: The converter can export itself as a Home Assistant add-on with one click. It uses the official Docker image from GHCR and allows choosing a specific version (tag). It also includes a special icon and `mdi:toy-brick` panel icon.
 - **Global Settings**: Configuration of repository name and maintainer in a separate view.
 - **Add-on Management**: List, edit, and delete created add-ons.
 
