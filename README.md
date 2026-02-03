@@ -15,10 +15,14 @@ This tool is a web-based converter that transforms any Docker image into a Home 
 - **Web UI Configuration**: Automatic generation of the `webui` URL (e.g., `http://[HOST]:[PORT:xxxx]/`) if Ingress is disabled.
 - **Port Mappings**: Definition of mappings between container ports and host ports.
 - **Backup Integration**: Mark add-ons as backup-compatible (supports `hot` backup mode).
-- **Environment Variables**: Definition of fixed environment variables.
-  - **Note**: Environment variables are fixed within the add-on configuration and cannot be changed via the Home Assistant GUI after installation. This ensures maximum compatibility with existing Docker images without requiring internal modifications.
-- **Clean Dockerfiles**: The generated `Dockerfile` is kept minimal. It uses the specified base image and does not override the default `CMD` or `ENTRYPOINT` (unless during self-conversion), preserving the original image's behavior.
-- **Simplified Config**: The `config.yaml` is kept clean by omitting unused optional fields like `options` and `schema`.
+- **Environment Variables**: Flexible definition of environment variables.
+  - **Static Variables**: Fixed within the add-on configuration.
+  - **Editable Variables**: Can be changed via the Home Assistant GUI after installation. This is achieved using a universal wrapper script.
+  - **Risk Note**: Enabling editable variables uses a wrapper script that replaces the container's entrypoint. While it attempts to preserve original behavior, it might cause issues with highly complex Docker images.
+- **Smart Entrypoint Preservation**: Uses `crane` to automatically detect and preserve the original `ENTRYPOINT` and `CMD` of any Docker image, even when using the environment variable wrapper.
+- **Universal Shell Support**: The wrapper script is written in POSIX-compliant `/bin/sh` and works without heavy dependencies like `jq` or `bash`, ensuring compatibility with minimalist images (e.g., Alpine).
+- **Clean Dockerfiles**: The generated `Dockerfile` is kept minimal. For standard add-ons, it uses a simple `FROM` instruction. For add-ons with editable variables, it automatically integrates the wrapper logic.
+- **Simplified Config**: The `config.yaml` is kept clean by only including `options` and `schema` when editable variables are actually used.
 - **Self-Conversion**: The converter can export itself as a Home Assistant add-on with one click. It uses the official Docker image from GHCR and allows choosing a specific version (tag). It also includes a special icon and `mdi:toy-brick` panel icon.
 - **Global Settings**: Configuration of repository name and maintainer in a separate view.
 - **Add-on Management**: List, edit, and delete created add-ons.
@@ -61,6 +65,8 @@ Each add-on directory contains:
 - `config.yaml`: Home Assistant configuration
 - `Dockerfile`: Based on the selected Docker image
 - `icon.png`: The add-on icon (automatically created during self-conversion or manual upload)
+- `run.sh`: (Optional) Wrapper script for environment variable support
+- `original_entrypoint` / `original_cmd`: (Optional) Stored metadata for entrypoint preservation
 
 A global `repository.yaml` is maintained in the main data directory.
 

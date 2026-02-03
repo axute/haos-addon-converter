@@ -1,3 +1,25 @@
+FROM alpine:3.19 AS crane
+
+RUN apk add --no-cache curl tar
+
+# crane installieren (immer latest)
+RUN ARCH=$(uname -m) && \
+    case "$ARCH" in \
+      x86_64)   CRANE_ARCH=x86_64 ;; \
+      aarch64)  CRANE_ARCH=arm64 ;; \
+      armv7l)   CRANE_ARCH=armv6 ;; \
+      *)        echo "Unsupported arch: $ARCH" && exit 1 ;; \
+    esac && \
+    VERSION=$(curl -s https://api.github.com/repos/google/go-containerregistry/releases/latest \
+              | grep tag_name | cut -d '"' -f 4) && \
+    URL="https://github.com/google/go-containerregistry/releases/download/${VERSION}/go-containerregistry_Linux_${CRANE_ARCH}.tar.gz" && \
+    echo "Downloading $URL" && \
+    curl -sSL "$URL" -o /tmp/crane.tar.gz && \
+    tar -xzf /tmp/crane.tar.gz -C /usr/local/bin crane && \
+    chmod +x /usr/local/bin/crane && \
+    rm /tmp/crane.tar.gz
+
+
 FROM php:8.3-apache
 
 # Apache mod_rewrite aktivieren für Slim Framework
@@ -9,6 +31,8 @@ RUN apt-get update && apt-get install -y \
     git \
     && rm -rf /var/www/html/var/lib/apt/lists/*
 
+COPY --from=crane /usr/local/bin/crane /usr/local/bin/crane
+RUN chmod +x /usr/local/bin/crane
 # Arbeitsverzeichnis setzen
 WORKDIR /var/www/html
 

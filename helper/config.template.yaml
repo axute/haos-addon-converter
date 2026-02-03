@@ -1,0 +1,19 @@
+{
+  "name": "Converted Addon",
+  "version": "1.0.0",
+  "slug": "converted_addon",
+  "description": "Automatically converted container with GUI-configurable ENV",
+  "boot": "auto",
+  "options": {
+    "ENV_VAR_1": "default1",
+    "ENV_VAR_2": "default2"
+  },
+
+  "schema": {
+    "ENV_VAR_1": "str?",
+    "ENV_VAR_2": "str?"
+  },
+
+  "entrypoint": ["/run.sh"],
+  "command": []
+}

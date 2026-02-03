@@ -69,6 +69,20 @@ class GenerateController
             // 'image' => $image // Removed because it's built locally from Dockerfile
         ];
 
+        // Image Informationen via crane abrufen
+        $imageConfig = $this->getImageConfig($image);
+        $origEntrypoint = $imageConfig['config']['Entrypoint'] ?? null;
+        $origCmd = $imageConfig['config']['Cmd'] ?? null;
+
+        // Prüfen, ob editierbare Umgebungsvariablen vorhanden sind
+        $hasEditableEnv = false;
+        foreach ($envVars as $var) {
+            if (!empty($var['editable'])) {
+                $hasEditableEnv = true;
+                break;
+            }
+        }
+
         if ($ingress) {
             $config['ingress'] = true;
             $config['ingress_port'] = $ingressPort;
@@ -104,18 +118,34 @@ class GenerateController
         // Umgebungsvariablen verarbeiten
         if (!empty($envVars)) {
             $environment = [];
+            $options = [];
+            $schema = [];
+
             foreach ($envVars as $var) {
                 if (!empty($var['key'])) {
-                    $environment[$var['key']] = $var['value'] ?? '';
+                    $key = $var['key'];
+                    $value = $var['value'] ?? '';
+                    $editable = $var['editable'] ?? false;
+
+                    if ($editable) {
+                        $options[$key] = $value;
+                        $schema[$key] = 'str?';
+                    } else {
+                        $environment[$key] = $value;
+                    }
                 }
             }
 
             if (!empty($environment)) {
                 $config['environment'] = $environment;
             }
+            if (!empty($options)) {
+                $config['options'] = $options;
+                $config['schema'] = $schema;
+            }
         }
         
-        file_put_contents($addonPath . '/config.yaml', Yaml::dump($config, 4, 2));
+        file_put_contents($addonPath . '/config.yaml', Yaml::dump($config, 10, 2, Yaml::DUMP_EMPTY_ARRAY_AS_SEQUENCE));
         
         // Icon Datei speichern, falls vorhanden
         if (!empty($iconFile)) {
@@ -128,11 +158,32 @@ class GenerateController
                 }
             }
         }
-        
-        // Dockerfile erstellen
-        $dockerfileContent = "FROM $image\n";
-        
-        file_put_contents($addonPath . '/Dockerfile', $dockerfileContent);
+
+        // Hilfsdateien kopieren/erstellen
+        if ($hasEditableEnv) {
+            copy(__DIR__ . '/../../helper/run.sh', $addonPath . '/run.sh');
+            chmod($addonPath . '/run.sh', 0755);
+
+            file_put_contents($addonPath . '/original_entrypoint', (is_array($origEntrypoint) && !empty($origEntrypoint)) ? implode(' ', $origEntrypoint) : ($origEntrypoint ?? ''));
+            file_put_contents($addonPath . '/original_cmd', (is_array($origCmd) && !empty($origCmd)) ? implode(' ', $origCmd) : ($origCmd ?? ''));
+
+            // Dockerfile erstellen
+            $dockerfileTemplate = file_get_contents(__DIR__ . '/../../helper/template.Dockerfile');
+            $dockerfileContent = str_replace('$image', $image, $dockerfileTemplate);
+            
+            // Entrypoint und Command ins Dockerfile schreiben, da config.yaml ignoriert wird
+            $dockerfileContent .= "\nENTRYPOINT [\"/run.sh\"]\n";
+            $dockerfileContent .= "CMD []\n";
+            
+            file_put_contents($addonPath . '/Dockerfile', $dockerfileContent);
+        } else {
+            // "Legacy" Modus: Wir brauchen kein spezielles Dockerfile oder Wrapper-Script
+            // Falls Dateien von vorherigen Versuchen existieren, löschen wir sie lieber nicht (Cleanup könnte riskant sein)
+            // Aber wir stellen sicher, dass das Dockerfile das Image einfach nutzt, falls HA es doch bauen will
+            // Normalerweise reicht bei Angabe von 'image' in config.yaml das Image direkt, 
+            // aber der Converter hat bisher immer ein Dockerfile erstellt.
+            file_put_contents($addonPath . '/Dockerfile', "FROM $image\n");
+        }
         
         // repository.yaml im Haupt-data-Verzeichnis erstellen/aktualisieren (falls nicht vorhanden oder Standardwerte)
         $this->ensureRepositoryYaml($dataDir);
@@ -146,7 +197,18 @@ class GenerateController
         return $response->withHeader('Content-Type', 'application/json');
     }
 
-    private function ensureRepositoryYaml($dataDir)
+    private function getImageConfig(string $image): array
+    {
+        $command = "crane config " . escapeshellarg($image) . " 2>&1";
+        $output = shell_exec($command);
+        $data = json_decode($output, true);
+        if (json_last_error() !== JSON_ERROR_NONE) {
+            return [];
+        }
+        return $data;
+    }
+
+    private function ensureRepositoryYaml($dataDir): void
     {
         $repoFile = $dataDir . '/repository.yaml';
         if (!file_exists($repoFile)) {
@@ -158,7 +220,7 @@ class GenerateController
         }
     }
 
-    private function recursiveCopy($src, $dst)
+    private function recursiveCopy($src, $dst): void
     {
         $src = str_replace('\\', '/', $src);
         $dst = str_replace('\\', '/', $dst);
@@ -176,7 +238,7 @@ class GenerateController
                 if (is_dir($srcFile)) {
                     // Wir überspringen das data Verzeichnis und vendor (wird im Dockerfile installiert)
                     // Wichtig: Wir müssen den relativen Pfad prüfen oder den absoluten Pfad des data-Verzeichnisses
-                    if ($file === 'data' || $file === 'vendor' || $file === '.git' || strpos($srcFile, 'data_self_test') !== false) {
+                    if ($file === 'data' || $file === 'vendor' || $file === '.git' || str_contains($srcFile, 'data_self_test')) {
                         continue;
                     }
                     $this->recursiveCopy($srcFile, $dstFile);

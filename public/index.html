@@ -133,10 +133,13 @@
                     <div class="col-md-6 mb-3">
                         <h5>Environment Variables</h5>
                         <div class="alert alert-info py-2 small">
-                            <strong>Note:</strong> Variables are fixed within the add-on.
+                            <strong>Note:</strong> Checkbox enables HA GUI editing.
                         </div>
                         <div id="envVarsContainer">
                             <!-- Dynamic Env Variables -->
+                        </div>
+                        <div id="envWarning" class="alert alert-warning py-2 small mt-2" style="display:none;">
+                            <strong>⚠️ Risiko:</strong> Durch das Aktivieren von editierbaren Variablen wird ein Wrapper-Script genutzt. Dies kann bei manchen Images zu Problemen führen, wenn der Entrypoint komplex ist.
                         </div>
                         <button type="button" class="btn btn-sm btn-outline-secondary" onclick="addEnvVar()">+ Add Variable</button>
                     </div>
@@ -240,16 +243,25 @@
         }
     });
 
-    function addEnvVar(key = '', value = '') {
+    function addEnvVar(key = '', value = '', editable = false) {
         const container = document.getElementById('envVarsContainer');
         const div = document.createElement('div');
         div.className = 'input-group mb-2 env-var-row';
         div.innerHTML = `
+            <div class="input-group-text">
+                <input class="form-check-input mt-0 env-editable" type="checkbox" value="" title="Editable in HA GUI" ${editable ? 'checked' : ''} onchange="checkEnvWarnings()">
+            </div>
             <input type="text" class="form-control env-key" placeholder="KEY" value="${key}">
             <input type="text" class="form-control env-value" placeholder="VALUE" value="${value}">
-            <button class="btn btn-outline-danger" type="button" onclick="this.parentElement.remove()">×</button>
+            <button class="btn btn-outline-danger" type="button" onclick="this.parentElement.remove(); checkEnvWarnings();">×</button>
         `;
         container.appendChild(div);
+        checkEnvWarnings();
+    }
+
+    function checkEnvWarnings() {
+        const editables = document.querySelectorAll('.env-editable:checked');
+        document.getElementById('envWarning').style.display = editables.length > 0 ? 'block' : 'none';
     }
 
     function getEnvVars() {
@@ -258,8 +270,9 @@
         rows.forEach(row => {
             const key = row.querySelector('.env-key').value.trim();
             const value = row.querySelector('.env-value').value;
+            const editable = row.querySelector('.env-editable').checked;
             if (key) {
-                vars.push({ key, value });
+                vars.push({ key, value, editable });
             }
         });
         return vars;
@@ -534,7 +547,7 @@
         document.getElementById('envVarsContainer').innerHTML = '';
         if (addon.env_vars && addon.env_vars.length > 0) {
             addon.env_vars.forEach(v => {
-                addEnvVar(v.key, v.value);
+                addEnvVar(v.key, v.value, v.editable);
             });
         }
         
