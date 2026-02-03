@@ -5,6 +5,10 @@ This tool is a web-based converter that transforms any Docker image into a Home 
 ## Features
 
 - **One-Step Form**: The former multi-step wizard has been reduced to a clear one-step form for faster editing.
+- **Add-on Documentation (Markdown)**: 
+  - Integration of **EasyMDE**, a user-friendly Markdown editor for detailed add-on descriptions.
+  - Automatic generation of a `README.md` file within the add-on directory, which Home Assistant uses for the detailed description page in the Add-on Store.
+  - Supports syntax highlighting, toolbar, and live preview.
 - **Version Management**: Dedicated buttons for **Major**, **Minor**, and **Fix updates** are available when editing add-ons, handling versioning automatically.
 - **Storage Mappings (Map)**: Support for Home Assistant storage mappings (`config`, `ssl`, `share`, `media`, `addons`, `backup`) with configurable access modes (`RW`/`RO`).
 - **Icon Support**: Upload a custom PNG icon or use the default icon.
@@ -64,6 +68,7 @@ Generated add-ons are created in the `/data/{addon-slug}` directory, as describe
 Each add-on directory contains:
 - `config.yaml`: Home Assistant configuration
 - `Dockerfile`: Based on the selected Docker image
+- `README.md`: Detailed add-on description (Markdown)
 - `icon.png`: The add-on icon (automatically created during self-conversion or manual upload)
 - `run.sh`: (Optional) Wrapper script for environment variable support
 - `original_entrypoint` / `original_cmd`: (Optional) Stored metadata for entrypoint preservation

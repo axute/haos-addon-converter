@@ -70,6 +70,12 @@ class AddonController
 
         $config = Yaml::parseFile($configFile);
         
+        $longDescription = '';
+        $readmeFile = $dataDir . '/' . $slug . '/README.md';
+        if (file_exists($readmeFile)) {
+            $longDescription = file_get_contents($readmeFile);
+        }
+        
         $hasLocalIcon = file_exists($dataDir . '/' . $slug . '/icon.png');
         $iconFileContent = '';
         if ($hasLocalIcon) {
@@ -124,6 +130,7 @@ class AddonController
         $data = [
             'name' => $config['name'] ?? '',
             'description' => $config['description'] ?? '',
+            'long_description' => $longDescription,
             'image' => $image ?: ($config['image'] ?? ''),
             'version' => $config['version'] ?? '',
             'ingress' => $config['ingress'] ?? false,

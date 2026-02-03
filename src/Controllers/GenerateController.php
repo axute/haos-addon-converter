@@ -21,6 +21,7 @@ class GenerateController
         $addonName = $data['name'] ?? '';
         $image = $data['image'] ?? '';
         $description = $data['description'] ?? 'Converted HA Add-on';
+        $longDescription = $data['long_description'] ?? '';
         $iconFile = $data['icon_file'] ?? ''; // Base64 encoded icon file data
         $version = $data['version'] ?? '1.0.0';
         $ingress = $data['ingress'] ?? false;
@@ -146,6 +147,11 @@ class GenerateController
         }
         
         file_put_contents($addonPath . '/config.yaml', Yaml::dump($config, 10, 2, Yaml::DUMP_EMPTY_ARRAY_AS_SEQUENCE));
+        
+        // README.md (long description) speichern
+        if (!empty($longDescription)) {
+            file_put_contents($addonPath . '/README.md', $longDescription);
+        }
         
         // Icon Datei speichern, falls vorhanden
         if (!empty($iconFile)) {
