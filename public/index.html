@@ -95,7 +95,7 @@
                                     <div class="col-md-5">
                                         <div class="mb-3">
                                             <label for="image" class="form-label">Docker Image Name</label>
-                                            <input type="text" class="form-control" id="image" required placeholder="e.g. nginx or alpine">
+                                            <input type="text" class="form-control" id="image" required placeholder="e.g. nginx or alpine" onchange="detectPM()">
                                             <div class="form-text">The image name (without tag).</div>
                                         </div>
                                     </div>
@@ -103,7 +103,7 @@
                                         <div class="mb-3">
                                             <label for="image_tag" class="form-label">Tag</label>
                                             <div class="input-group">
-                                                <input type="text" class="form-control" id="image_tag" list="imageTagOptions" placeholder="latest">
+                                                <input type="text" class="form-control" id="image_tag" list="imageTagOptions" placeholder="latest" onchange="detectPM()">
                                                 <button class="btn btn-outline-secondary" type="button" id="btnFetchTags" onclick="fetchImageTags()">
                                                     <span id="tagLoader" class="spinner-border spinner-border-sm" role="status" style="display:none;"></span>
                                                     <span>🔍</span>
@@ -113,6 +113,19 @@
                                             <div class="form-text">e.g. latest, 3.14</div>
                                         </div>
                                     </div>
+                                    <div class="col-md-4">
+                                        <div class="mb-3">
+                                            <label class="form-label">Detected Package Manager</label>
+                                            <div class="input-group">
+                                                <input type="text" class="form-control" id="detected_pm" readonly placeholder="unknown">
+                                                <button class="btn btn-outline-secondary" type="button" onclick="detectPM()">🔄</button>
+                                            </div>
+                                            <div class="form-text">Detected via crane.</div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="row">
                                     <div class="col-md-4">
                                         <div class="mb-3">
                                             <label for="icon_file" class="form-label">Icon File (PNG)</label>
@@ -437,6 +450,24 @@
         document.getElementById('converterForm').dispatchEvent(new Event('submit'));
     }
 
+    async function detectPM() {
+        const image = document.getElementById('image').value.trim();
+        const tag = document.getElementById('image_tag').value.trim() || 'latest';
+        if (!image) return;
+        
+        const pmInput = document.getElementById('detected_pm');
+        pmInput.value = 'detecting...';
+        
+        try {
+            const response = await fetch(`${basePath}/detect-pm?image=${encodeURIComponent(image)}&tag=${encodeURIComponent(tag)}`);
+            const data = await response.json();
+            pmInput.value = data.pm || 'unknown';
+        } catch (e) {
+            console.error('Error detecting PM', e);
+            pmInput.value = 'error';
+        }
+    }
+
     async function fetchImageTags() {
         const image = document.getElementById('image').value.trim();
         if (!image) return;
@@ -463,6 +494,8 @@
                 datalist.appendChild(option);
             });
             datalist.dataset.image = image;
+            // PM nach dem Abrufen der Tags ebenfalls erkennen (da evtl. 'latest' gewählt wurde)
+            detectPM();
         } catch (e) {
             console.error('Error fetching tags', e);
             datalist.innerHTML = '';
@@ -489,6 +522,7 @@
             panel_icon: document.getElementById('panel_icon').value || 'mdi:link-variant',
             webui_port: document.getElementById('web_ui_port').value ? parseInt(document.getElementById('web_ui_port').value) : null,
             backup: document.getElementById('backup').checked,
+            detected_pm: document.getElementById('detected_pm').value,
             ports: getPortMappings(),
             map: getMapMappings(),
             env_vars: getEnvVars()
@@ -545,7 +579,9 @@
                             : '📦'} 
                     </div>
                     <div>
-                        <strong>${addon.name}</strong><br>
+                        <strong>${addon.name}</strong>
+                        ${addon.detected_pm ? `<span class="badge bg-info text-dark rounded-pill ms-1" style="font-size: 0.7rem;">${addon.detected_pm}</span>` : ''}
+                        <br>
                         <small class="text-muted d-block">${addon.description}</small>
                         <small class="text-muted">Version: ${addon.version} | Image: <code>${addon.image}</code></small>
                     </div>
@@ -645,6 +681,8 @@
         document.getElementById('web_ui_port').value = webuiPort;
         
         document.getElementById('backup').checked = addon.backup;
+        
+        document.getElementById('detected_pm').value = addon.detected_pm || 'unknown';
         
         document.getElementById('ingressOptions').style.display = addon.ingress ? 'block' : 'none';
         document.getElementById('webUiPortContainer').style.display = addon.ingress ? 'none' : 'block';

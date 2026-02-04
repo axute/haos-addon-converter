@@ -29,6 +29,7 @@ RUN a2enmod rewrite
 RUN apt-get update && apt-get install -y \
     unzip \
     git \
+    jq \
     && rm -rf /var/www/html/var/lib/apt/lists/*
 
 COPY --from=crane /usr/local/bin/crane /usr/local/bin/crane

@@ -36,12 +36,22 @@ class AddonController
                         }
                     }
 
+                    $metadataFile = $dir . '/metadata.json';
+                    $detectedPm = $config['init_pm'] ?? null;
+                    if (file_exists($metadataFile)) {
+                        $metadata = json_decode(file_get_contents($metadataFile), true);
+                        if (isset($metadata['detected_pm'])) {
+                            $detectedPm = $metadata['detected_pm'];
+                        }
+                    }
+
                     $addons[] = [
                         'slug' => $slug,
                         'name' => $config['name'] ?? $slug,
                         'version' => $config['version'] ?? 'unknown',
                         'description' => $config['description'] ?? '',
                         'image' => $image ?: ($config['image'] ?? ''),
+                        'detected_pm' => $detectedPm,
                         'has_local_icon' => $hasLocalIcon
                     ];
                 }
@@ -134,6 +144,15 @@ class AddonController
         }
 
         // Versuchen wir auch den Ingress Port zu finden, falls er nicht in der config steht (obwohl er dort stehen sollte)
+        $metadataFile = $dataDir . '/' . $slug . '/metadata.json';
+        $detectedPm = $config['init_pm'] ?? '';
+        if (file_exists($metadataFile)) {
+            $metadata = json_decode(file_get_contents($metadataFile), true);
+            if (isset($metadata['detected_pm'])) {
+                $detectedPm = $metadata['detected_pm'];
+            }
+        }
+
         $data = [
             'name' => $config['name'] ?? '',
             'description' => $config['description'] ?? '',
@@ -146,6 +165,7 @@ class AddonController
             'panel_icon' => $config['panel_icon'] ?? 'mdi:link-variant',
             'webui' => $config['webui'] ?? '',
             'backup' => (isset($config['backup']) && $config['backup'] !== false),
+            'detected_pm' => $detectedPm,
             'has_local_icon' => $hasLocalIcon,
             'icon_file' => $iconFileContent,
             'ports' => $ports,
@@ -251,6 +271,56 @@ class AddonController
         });
 
         $response->getBody()->write(json_encode(array_values($tags)));
+        return $response->withHeader('Content-Type', 'application/json');
+    }
+
+    public function detectPackageManager(Request $request, Response $response): Response
+    {
+        $queryParams = $request->getQueryParams();
+        $image = $queryParams['image'] ?? '';
+        $tag = $queryParams['tag'] ?? 'latest';
+
+        if (empty($image)) {
+            $response->getBody()->write(json_encode(['pm' => 'unknown']));
+            return $response->withHeader('Content-Type', 'application/json');
+        }
+
+        $fullImage = $image . ($tag ? ':' . $tag : '');
+
+        // Caching
+        $cacheDir = $this->getDataDir() . '/.cache';
+        if (!is_dir($cacheDir)) {
+            mkdir($cacheDir, 0777, true);
+        }
+        $cacheFile = $cacheDir . '/pm_cache.json';
+        $cache = [];
+        if (file_exists($cacheFile)) {
+            $cache = json_decode(file_get_contents($cacheFile), true) ?: [];
+        }
+
+        if (isset($cache[$fullImage])) {
+            $response->getBody()->write(json_encode(['pm' => $cache[$fullImage], 'cached' => true]));
+            return $response->withHeader('Content-Type', 'application/json');
+        }
+
+        $helperScript = __DIR__ . '/../../helper/detect_pm.sh';
+        
+        // Da wir auf Windows sind, müssen wir detect_pm.sh eventuell mit bash ausführen
+        // oder wir portieren die Logik. Da das Skript bash-spezifisch ist (grep, jq, crane ls --recursive),
+        // versuchen wir es mit bash (falls vorhanden, z.B. von Git Bash).
+        
+        $command = "bash " . escapeshellarg($helperScript) . " " . escapeshellarg($fullImage) . " 2>&1";
+        $pm = trim(shell_exec($command));
+
+        if (empty($pm)) {
+            $pm = 'unknown';
+        }
+
+        // Cache speichern
+        $cache[$fullImage] = $pm;
+        file_put_contents($cacheFile, json_encode($cache));
+
+        $response->getBody()->write(json_encode(['pm' => $pm]));
         return $response->withHeader('Content-Type', 'application/json');
     }
 

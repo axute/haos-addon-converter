@@ -2,69 +2,50 @@
 
 detect_pkg() {
     local image="$1"
-
-    # crane binary variabel machen
     local CRANE_BIN="${CRANE:-crane}"
 
-    # 1. Config auslesen (History)
+    # 1. Stufe: History durchsuchen (Schnell)
     local history
-    history=$("$CRANE_BIN" config "$image" 2>/dev/null | jq -r '.history[].created_by // empty')
+    history=$("$CRANE_BIN" config "$image" 2>/dev/null | jq -r '.history[].created_by // empty' 2>/dev/null)
 
-    # 2. Dateisystem auslesen (mit Tag!)
+    if [ -n "$history" ]; then
+        if echo "$history" | grep -qi "apk"; then echo "apk"; return; fi
+        if echo "$history" | grep -qiE "debian|ubuntu|apt"; then echo "apt"; return; fi
+        if echo "$history" | grep -qiE "yum|dnf|centos|fedora"; then echo "yum"; return; fi
+        if echo "$history" | grep -qi "zypper"; then echo "zypper"; return; fi
+        if echo "$history" | grep -qi "pacman"; then echo "pacman"; return; fi
+        if echo "$history" | grep -qi "busybox"; then echo "busybox"; return; fi
+    fi
+
+    # 2. Stufe: Dateisystem durchsuchen (Gründlich, falls History nicht eindeutig)
+    # Wir nutzen 'crane export' um die Dateiliste zu streamen, ohne das Image zu laden
     local files
-    files=$("$CRANE_BIN" ls --recursive "$image" 2>/dev/null)
+    # Wir suchen nach markanten Dateien/Verzeichnissen
+    files=$("$CRANE_BIN" export "$image" - 2>/dev/null | tar -tf - 2>/dev/null)
 
-    # --- Alpine / apk ---
-    if echo "$history" | grep -qi "apk" \
-       || echo "$files" | grep -q "/sbin/apk"; then
-        echo "apk"
-        return
+    if [ -n "$files" ]; then
+        if echo "$files" | grep -E "etc/apk/|lib/apk/|sbin/apk" >/dev/null 2>&1; then echo "apk"; return; fi
+        if echo "$files" | grep -E "usr/bin/apt|var/lib/dpkg/" >/dev/null 2>&1; then echo "apt"; return; fi
+        if echo "$files" | grep -E "usr/bin/yum|usr/bin/dnf|etc/yum.repos.d/" >/dev/null 2>&1; then echo "yum"; return; fi
+        if echo "$files" | grep -E "usr/bin/zypper|etc/zypp/" >/dev/null 2>&1; then echo "zypper"; return; fi
+        if echo "$files" | grep -E "usr/bin/pacman|etc/pacman.conf" >/dev/null 2>&1; then echo "pacman"; return; fi
+        if echo "$files" | grep "bin/busybox" >/dev/null 2>&1; then echo "busybox"; return; fi
     fi
 
-    # --- Debian/Ubuntu / apt ---
-    if echo "$history" | grep -qiE "debian|ubuntu|apt" \
-       || echo "$files" | grep -q "/usr/bin/apt-get"; then
-        echo "apt"
-        return
+    # 3. Spezialfall: Scratch / Distroless (nur wenn History vorhanden aber leer/minimal)
+    if [ -n "$history" ]; then
+        if echo "$history" | grep -qiE "scratch|distroless"; then
+            echo "none"
+            return
+        fi
     fi
 
-    # --- RHEL/Fedora / yum/dnf ---
-    if echo "$history" | grep -qiE "yum|dnf|centos|fedora" \
-       || echo "$files" | grep -q "/usr/bin/yum"; then
-        echo "yum"
-        return
+    # Wenn wir gar nichts gefunden haben, aber files/history da waren, ist es vielleicht wirklich leer oder unbekannt
+    if [ -z "$history" ] && [ -z "$files" ]; then
+        echo "unknown"
+    else
+        echo "unknown"
     fi
-
-    # --- SUSE / zypper ---
-    if echo "$history" | grep -qi "zypper" \
-       || echo "$files" | grep -q "/usr/bin/zypper"; then
-        echo "zypper"
-        return
-    fi
-
-    # --- Arch / pacman ---
-    if echo "$history" | grep -qi "pacman" \
-       || echo "$files" | grep -q "/usr/bin/pacman"; then
-        echo "pacman"
-        return
-    fi
-
-    # --- BusyBox ---
-    if echo "$history" | grep -qi "busybox" \
-       || echo "$files" | grep -q "/bin/busybox"; then
-        echo "busybox"
-        return
-    fi
-
-    # --- Scratch / Distroless ---
-    if [ -z "$history" ] \
-       || echo "$history" | grep -qi "scratch" \
-       || echo "$history" | grep -qi "distroless"; then
-        echo "none"
-        return
-    fi
-
-    echo "unknown"
 }
 
-detect_pkg $1
+detect_pkg "$1"

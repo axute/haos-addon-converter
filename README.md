@@ -6,6 +6,9 @@ This tool is a web-based converter that transforms any Docker image into a Home 
 
 ### 🚀 Core Converter Features
 - **Smart Entrypoint Preservation**: Uses `crane` to automatically detect and preserve the original `ENTRYPOINT` and `CMD` of any Docker image.
+- **Package Manager Detection**: 
+  - **Two-Stage Analysis**: Automatically detects the package manager (`apk`, `apt`, `yum`, etc.) by first checking the image history and then falling back to a deep filesystem scan using `crane export`.
+  - **Smart Caching**: Results are cached globally to ensure lightning-fast responses for previously analyzed images.
 - **Environment Variables**:
   - **Static Variables**: Fixed within the add-on configuration.
   - **Editable Variables**: Can be changed via the Home Assistant GUI after installation using a universal wrapper script.
@@ -29,6 +32,7 @@ This tool is a web-based converter that transforms any Docker image into a Home 
 - **Intelligent Docker Image Selection**: 
   - Separate inputs for Image Name and Tag.
   - **Manual Tag Fetcher**: Dedicated button (🔍) to fetch available tags directly from the registry using `crane`.
+  - **Automatic PM Detection**: Real-time identification of the package manager with a manual refresh option (🔄).
   - **Smart Sorting**: Tags are sorted by version, with `latest` at the top and technical tags (signatures/hashes) at the bottom.
 - **Add-on Documentation (Markdown)**: 
   - Integrated **EasyMDE** editor with syntax highlighting and live preview.
@@ -37,7 +41,7 @@ This tool is a web-based converter that transforms any Docker image into a Home 
 - **Icon Support**: Custom PNG upload support with preview or use of default icons.
 - **Self-Conversion**: Export the converter itself as an HA add-on with one click (includes version selection from GHCR).
 - **Management Tools**: 
-  - List view showing add-on name, description, version, and base image.
+  - List view showing add-on name, description, version, base image, and **detected package manager badge**.
   - Edit and delete created add-ons.
   - Global repository settings (Name, Maintainer).
 
@@ -77,6 +81,7 @@ Generated add-ons are created in the `/data/{addon-slug}` directory, as describe
 
 Each add-on directory contains:
 - `config.yaml`: Home Assistant configuration
+- `metadata.json`: Internal metadata (e.g., detected package manager) - keeps `config.yaml` clean for Home Assistant
 - `Dockerfile`: Based on the selected Docker image
 - `README.md`: Detailed add-on description (Markdown)
 - `icon.png`: The add-on icon (automatically created during self-conversion or manual upload)

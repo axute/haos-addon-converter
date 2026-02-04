@@ -38,6 +38,7 @@ class GenerateController
         $ports = $data['ports'] ?? [];
         $map = $data['map'] ?? [];
         $envVars = $data['env_vars'] ?? [];
+        $detectedPm = $data['detected_pm'] ?? null;
         $isSelfConvert = $data['self_convert'] ?? false;
         
         if (empty($addonName) || empty($image)) {
@@ -74,6 +75,10 @@ class GenerateController
             'boot' => 'auto',
             // 'image' => $image // Removed because it's built locally from Dockerfile
         ];
+
+        if ($detectedPm) {
+            $this->saveMetadata($addonPath, ['detected_pm' => $detectedPm]);
+        }
 
         // Image Informationen via crane abrufen
         $imageConfig = $this->getImageConfig($image);
@@ -229,6 +234,17 @@ class GenerateController
             ];
             file_put_contents($repoFile, Yaml::dump($repoConfig, 4, 2));
         }
+    }
+
+    private function saveMetadata(string $addonPath, array $newData): void
+    {
+        $metadataFile = $addonPath . '/metadata.json';
+        $metadata = [];
+        if (file_exists($metadataFile)) {
+            $metadata = json_decode(file_get_contents($metadataFile), true) ?: [];
+        }
+        $metadata = array_merge($metadata, $newData);
+        file_put_contents($metadataFile, json_encode($metadata, JSON_PRETTY_PRINT));
     }
 
     private function recursiveCopy($src, $dst)
