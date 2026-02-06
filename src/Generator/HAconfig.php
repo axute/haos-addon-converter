@@ -83,7 +83,7 @@ class HAconfig extends Yamlfile
     {
         $entry = [
             'type' => $type,
-            'readOnly' => $readOnly,
+            'read_only' => $readOnly,
         ];
         if ($path) $entry['path'] = $path;
         $this->map[] = $entry;
