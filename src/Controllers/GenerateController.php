@@ -196,7 +196,7 @@ class GenerateController
         // README.md (long description) speichern
         if (!empty($longDescription)) {
             $readmeContent = $longDescription;
-            if (file_exists($addonPath . '/icon.png')) {
+            if (file_exists($addonPath . '/icon.png') && strpos($readmeContent, '![Logo](icon.png)') === false) {
                 $readmeContent = "![Logo](icon.png)\n\n" . $readmeContent;
             }
             file_put_contents($addonPath . '/README.md', $readmeContent);

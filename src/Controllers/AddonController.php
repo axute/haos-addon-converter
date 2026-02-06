@@ -105,6 +105,9 @@ class AddonController
         $readmeFile = $dataDir . '/' . $slug . '/README.md';
         if (file_exists($readmeFile)) {
             $longDescription = file_get_contents($readmeFile);
+            // Logo-Tag entfernen, falls vorhanden, damit es im Editor nicht doppelt erscheint
+            // und beim Speichern nicht erneut hinzugefügt wird
+            $longDescription = str_replace("![Logo](icon.png)\n\n", "", $longDescription);
         }
         
         $hasLocalIcon = file_exists($dataDir . '/' . $slug . '/icon.png');
@@ -202,6 +205,7 @@ class AddonController
         $data = [
             'name' => $config['name'] ?? '',
             'description' => $config['description'] ?? '',
+            'long_description' => $longDescription,
             'image' => $image ?: ($config['image'] ?? ''),
             'image_tag' => $image_tag,
             'version' => $config['version'] ?? '',

@@ -1,4 +1,5 @@
 // Global variables
+window.bashioVersions = [];
 let easyMDE;
 let startupScriptEditor;
 let originalVersion = '1.0.0';
@@ -21,19 +22,18 @@ window.addEnvVar = addEnvVar;
 window.addPort = addPortMapping;
 window.addMap = addMapMapping;
 window.selfConvert = selfConvert;
-
-let bashioVersions = [];
+window.updateVersion = updateVersion;
 
 async function fetchBashioVersions() {
     const loader = document.getElementById('bashioLoader');
     if (loader) loader.style.display = 'inline-block';
     try {
         const response = await fetch(`${basePath}/bashio-versions`);
-        bashioVersions = await response.json();
+        window.bashioVersions = await response.json();
         const select = document.getElementById('bashio_version');
         if (select) {
             select.innerHTML = '';
-            bashioVersions.forEach(v => {
+            window.bashioVersions.forEach(v => {
                 const opt = document.createElement('option');
                 opt.value = v;
                 opt.textContent = v;
@@ -353,7 +353,7 @@ function getMapMappings() {
     return maps;
 }
 
-async function submitUpdate(type) {
+async function updateVersion(type) {
     let parts = originalVersion.split('.').map(x => parseInt(x) || 0);
     while (parts.length < 3) parts.push(0);
 
@@ -538,8 +538,14 @@ async function editAddon(slug) {
     const descInput = document.getElementById('description');
     if (descInput) descInput.value = addon.description;
 
-    if (easyMDE) easyMDE.value(addon.long_description || '');
-    if (startupScriptEditor) startupScriptEditor.setValue(addon.startup_script || '');
+    if (easyMDE) {
+        easyMDE.value(addon.long_description || '');
+        setTimeout(() => easyMDE.codemirror.refresh(), 100);
+    }
+    if (startupScriptEditor) {
+        startupScriptEditor.setValue(addon.startup_script || '');
+        setTimeout(() => startupScriptEditor.refresh(), 100);
+    }
     
     const iconPreview = document.getElementById('icon_preview');
     if (addon.icon_file) {
@@ -665,10 +671,10 @@ async function editAddon(slug) {
     const bashioVersionInput = document.getElementById('bashio_version');
     if (bashioVersionInput) {
         // Sicherstellen, dass die Liste geladen ist
-        if (bashioVersions.length === 0) {
+        if (window.bashioVersions.length === 0) {
             await fetchBashioVersions();
         }
-        bashioVersionInput.value = addon.bashio_version || bashioVersions[0] || '';
+        bashioVersionInput.value = addon.bashio_version || window.bashioVersions[0] || '';
     }
     
     resetAccordion();
