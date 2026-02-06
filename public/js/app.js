@@ -348,7 +348,7 @@ function getMapMappings() {
     rows.forEach(row => {
         const folder = row.querySelector('.map-folder').value;
         const mode = row.querySelector('.map-mode').value;
-        maps.push(`${folder}:${mode}`);
+        maps.push([folder, mode]);
     });
     return maps;
 }

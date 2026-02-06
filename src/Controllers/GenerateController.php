@@ -2,9 +2,8 @@
 
 namespace App\Controllers;
 
-use Psr\Http\Message\ResponseInterface as Response;
-use Psr\Http\Message\ServerRequestInterface as Request;
-use Symfony\Component\Yaml\Yaml;
+use App\Generator\{Dockerfile, HAconfig, HArepository, Metadata};
+use Psr\Http\Message\{ResponseInterface as Response, ServerRequestInterface as Request};
 
 class GenerateController
 {
@@ -17,173 +16,141 @@ class GenerateController
     {
         $body = (string)$request->getBody();
         $data = json_decode($body, true);
-        
+
         $addonName = $data['name'] ?? '';
         $image = $data['image'] ?? '';
         $image_tag = $data['image_tag'] ?? '';
-        if (!empty($image_tag) && strpos($image, ':') === false) {
+        if (!empty($image_tag) && !str_contains($image, ':')) {
             $image .= ':' . $image_tag;
         }
 
-        $description = $data['description'] ?? 'Converted HA Add-on';
-        $longDescription = $data['long_description'] ?? '';
-        $iconFile = $data['icon_file'] ?? ''; // Base64 encoded icon file data
-        $version = $data['version'] ?? '1.0.0';
-        $ingress = $data['ingress'] ?? false;
-        $ingressPort = $data['ingress_port'] ?? 80;
-        $ingressStream = $data['ingress_stream'] ?? false;
-        $webuiPort = $data['webui_port'] ?? null;
-        $panelIcon = $data['panel_icon'] ?? 'mdi:link-variant';
-        $backup = $data['backup'] ?? false;
-        $ports = $data['ports'] ?? [];
-        $map = $data['map'] ?? [];
-        $envVars = $data['env_vars'] ?? [];
-        $detectedPm = $data['detected_pm'] ?? null;
-        $isSelfConvert = $data['self_convert'] ?? false;
-        $quirks = $data['quirks'] ?? false;
-        $allowUserEnv = $data['allow_user_env'] ?? false;
-        $bashioVersion = $data['bashio_version'] ?? '';
-        $startupScript = $data['startup_script'] ?? '';
-        
         if (empty($addonName) || empty($image)) {
             $response->getBody()->write(json_encode(['status' => 'error', 'message' => 'Name and image are required']));
             return $response->withHeader('Content-Type', 'application/json')->withStatus(400);
         }
-        
+
+        $isSelfConvert = $data['self_convert'] ?? false;
+        $slug = $this->generateSlug($addonName, $isSelfConvert);
+
+        $dataDir = str_replace('\\', '/', $this->getDataDir());
+        $addonPath = $dataDir . '/' . $slug;
+
+        if (!is_dir($addonPath)) {
+            mkdir($addonPath, 0777, true);
+        }
+
+        // Metadaten initial speichern/laden
+        $imageConfig = $this->getImageConfig($image);
+        $origEntrypoint = $imageConfig['config']['Entrypoint'] ?? null;
+        $origCmd = $imageConfig['config']['Cmd'] ?? null;
+        $addonMetadata = new Metadata();
+        $addonMetadata->add('detected_pm', $data['detected_pm'] ?? null);
+        $addonMetadata->add('quirks', $data['quirks'] ?? false);
+        $addonMetadata->add('allow_user_env', $data['allow_user_env'] ?? false);
+        $addonMetadata->add('bashio_version', $data['bashio_version'] ?? '0.17.5');
+        $addonMetadata->add('has_startup_script', !empty($data['startup_script'] ?? ''));
+        $addonMetadata->add('original_entrypoint', $origEntrypoint);
+        $addonMetadata->add('original_cmd', $origCmd);
+        $this->saveMetadata($addonPath, $addonMetadata);
+
+        // Dateien generieren
+        $this->generateConfigYaml($addonPath, $data, $slug);
+        $this->handleIcon($addonPath, $data['icon_file'] ?? '');
+        $this->generateReadme($addonPath, $data);
+        $this->handleHelperFiles($addonPath, $data, $image, $origEntrypoint, $origCmd);
+        $this->generateDockerfile($addonPath, $data, $image);
+
+        // repository.yaml im Haupt-data-Verzeichnis erstellen/aktualisieren
+        $this->ensureRepositoryYaml($dataDir);
+
+        $result = [
+            'status' => 'success',
+            'path' => realpath($addonPath)
+        ];
+
+        $response->getBody()->write(json_encode($result));
+        return $response->withHeader('Content-Type', 'application/json');
+    }
+
+    private function generateSlug(string $addonName, bool $isSelfConvert): string
+    {
+        if ($isSelfConvert) {
+            return 'haos_addon_converter';
+        }
+
         $slug = strtolower($addonName);
         $slug = str_replace([' ', '-', '.'], '_', $slug);
         $slug = preg_replace('/[^a-z0-9_]/', '', $slug);
         $slug = preg_replace('/_+/', '_', $slug);
-        $slug = trim($slug, '_');
-        
-        // Fix für HAOS Add-on Converter Slug (manchmal wird er zu dd_on_onverter)
-        if ($isSelfConvert) {
-            $slug = 'haos_addon_converter';
+        return trim($slug, '_');
+    }
+
+    private function generateConfigYaml(string $addonPath, array $data, string $slug): void
+    {
+        $haConfig = new HAconfig(
+            $data['name'], $data['version'] ?? '1.0.0', $slug, $data['description'] ?? 'Converted HA Add-on',
+        );
+        $haConfig->addEnvironment('HAOS_CONVERTER_BASHIO_VERSION', $data['bashio_version'] ?? '0.17.5');
+
+        if (!empty($data['detected_pm'])) {
+            $haConfig->addEnvironment('HAOS_CONVERTER_PM', $data['detected_pm']);
         }
 
-        $dataDir = str_replace('\\', '/', $this->getDataDir());
-        $addonPath = $dataDir . '/' . $slug;
-        
-        if (!is_dir($addonPath)) {
-            mkdir($addonPath, 0777, true);
-        }
-        
-        // config.yaml erstellen
-        $config = [
-            'name' => $addonName,
-            'version' => $version,
-            'slug' => $slug,
-            'description' => $description,
-            'arch' => ['aarch64', 'amd64', 'armhf', 'armv7', 'i386'],
-            'startup' => 'application',
-            'boot' => 'auto',
-            // 'image' => $image // Removed because it's built locally from Dockerfile
-        ];
-
-        if ($detectedPm) {
-            $this->saveMetadata($addonPath, ['detected_pm' => $detectedPm]);
-            // Paketmanager als feste Umgebungsvariable hinzufügen
-            $config['environment']['HAOS_CONVERTER_PM'] = $detectedPm;
+        if (!empty($data['ingress'])) {
+            $haConfig->setIngress(
+                port: $data['ingress_port'] ?? 80,
+                stream: !empty($data['ingress_stream']),
+                icon: $data['panel_icon'] ?? null);
+        } elseif (!empty($data['webui_port'])) {
+            $haConfig->setWebUI(port: $data['webui_port']);
         }
 
-        if ($bashioVersion) {
-            $config['environment']['HAOS_CONVERTER_BASHIO_VERSION'] = $bashioVersion;
-        } else {
-            // Standardversion falls aus irgendeinem Grund nichts übergeben wurde
-            $config['environment']['HAOS_CONVERTER_BASHIO_VERSION'] = '0.17.5';
+        if (isset($data['backup'])) {
+            $haConfig->setBackup($data['backup']);
         }
 
-        // Image Informationen via crane abrufen
-        $imageConfig = $this->getImageConfig($image);
-        $origEntrypoint = $imageConfig['config']['Entrypoint'] ?? null;
-        $origCmd = $imageConfig['config']['Cmd'] ?? null;
-
-        $this->saveMetadata($addonPath, [
-            'original_entrypoint' => $origEntrypoint,
-            'original_cmd' => $origCmd
-        ]);
-
-        // Prüfen, ob editierbare Umgebungsvariablen vorhanden sind
-        $hasEditableEnv = false;
-        foreach ($envVars as $var) {
-            if (!empty($var['editable'])) {
-                $hasEditableEnv = true;
-                break;
+        if (!empty($data['map'])) {
+            foreach ($data['map'] as $map) {
+                /** @var string[] $map */
+                $haConfig->addMap(type: $map[0], readOnly: $map[1] === 'ro');
             }
         }
 
-        if ($ingress) {
-            $config['ingress'] = true;
-            $config['ingress_port'] = $ingressPort;
-            if ($ingressStream) {
-                $config['ingress_stream'] = true;
-            }
-            $config['panel_icon'] = $panelIcon;
-        } elseif ($webuiPort) {
-            $config['webui'] = "http://[HOST]:[PORT:$webuiPort]/";
-        }
-
-        if ($backup === 'hot' || $backup === 'cold') {
-            $config['backup'] = $backup;
-        }
-
-        if (!empty($map)) {
-            $config['map'] = $map;
-        }
-
-        // Ports verarbeiten
-        if (!empty($ports)) {
-            $configPorts = [];
-            foreach ($ports as $p) {
-                if (!empty($p['container']) && !empty($p['host'])) {
-                    $configPorts[$p['container'] . '/tcp'] = (int)$p['host'];
+        if (!empty($data['ports'])) {
+            foreach ($data['ports'] as $p) {
+                if (!empty($p['container'])) {
+                    $haConfig->addPort($p['container'], $p['host'] ?? null);
                 }
             }
-            if (!empty($configPorts)) {
-                $config['ports'] = $configPorts;
-            }
         }
 
-        // Umgebungsvariablen verarbeiten
-        if (!empty($envVars) || $allowUserEnv) {
-            $environment = [];
-            $options = [];
-            $schema = [];
+        if (!empty($data['env_vars']) || !empty($data['allow_user_env'])) {
 
-            foreach ($envVars as $var) {
+            foreach ($data['env_vars'] ?? [] as $var) {
                 if (!empty($var['key'])) {
                     $key = $var['key'];
                     $value = $var['value'] ?? '';
                     $editable = $var['editable'] ?? false;
 
-                    if ($quirks && $editable) {
-                        $options[$key] = $value;
-                        $schema[$key] = 'str?';
+                    if (!empty($data['quirks']) && $editable) {
+                        $haConfig->addOption($key, $value, 'str?');
                     } else {
-                        $environment[$key] = $value;
+                        $haConfig->addEnvironment($key, $value);
                     }
                 }
             }
 
-            if ($allowUserEnv) {
-                $options['env_vars'] = [];
-                $schema['env_vars'] = ['str'];
-            }
-
-            if (!empty($environment)) {
-                $config['environment'] = $environment;
-            }
-            if (!empty($options)) {
-                $config['options'] = $options;
-                $config['schema'] = $schema;
+            if (!empty($data['allow_user_env'])) {
+                $haConfig->addOption('env_vars', [], ['str']);
             }
         }
-        
-        file_put_contents($addonPath . '/config.yaml', Yaml::dump($config, 10, 2, Yaml::DUMP_EMPTY_ARRAY_AS_SEQUENCE));
-        
-        // Icon Datei speichern, falls vorhanden
+
+        file_put_contents($addonPath . '/' . HAconfig::FILENAME, $haConfig);
+    }
+
+    private function handleIcon(string $addonPath, string $iconFile): void
+    {
         if (!empty($iconFile)) {
-            // Wir erwarten ein Format wie "data:image/png;base64,..."
             if (preg_match('/^data:image\/(\w+);base64,/', $iconFile, $type)) {
                 $iconData = substr($iconFile, strpos($iconFile, ',') + 1);
                 $iconData = base64_decode($iconData);
@@ -192,95 +159,83 @@ class GenerateController
                 }
             }
         }
+    }
 
-        // README.md (long description) speichern
+    private function generateReadme(string $addonPath, array $data): void
+    {
+        $longDescription = $data['long_description'] ?? '';
+        $addonName = $data['name'];
+        $description = $data['description'] ?? 'Converted HA Add-on';
+
         if (!empty($longDescription)) {
             $readmeContent = $longDescription;
-            if (file_exists($addonPath . '/icon.png') && strpos($readmeContent, '![Logo](icon.png)') === false) {
+            if (file_exists($addonPath . '/icon.png') && !str_contains($readmeContent, '![Logo](icon.png)')) {
                 $readmeContent = "![Logo](icon.png)\n\n" . $readmeContent;
             }
             file_put_contents($addonPath . '/README.md', $readmeContent);
         } elseif (file_exists($addonPath . '/icon.png')) {
             file_put_contents($addonPath . '/README.md', "![Logo](icon.png)\n\n# $addonName\n\n$description");
         }
+    }
 
-        // Hilfsdateien kopieren/erstellen
-        $this->saveMetadata($addonPath, [
-            'quirks' => $quirks,
-            'allow_user_env' => $allowUserEnv,
-            'bashio_version' => $bashioVersion,
-            'has_startup_script' => !empty($startupScript)
-        ]);
+    private function handleHelperFiles(string $addonPath, array $data, string $image, $origEntrypoint, $origCmd): void
+    {
+        [$quirks, $hasEditableEnv] = $this->getQuirksConfig($data);
+        $allowUserEnv = $data['allow_user_env'] ?? false;
+        $startupScript = $data['startup_script'] ?? '';
 
-        if ($quirks) {
-            // Wrapper run.sh wird kopiert, wenn Quirks aktiv sind (für Startup Script ODER editable Env)
-            // Auch wenn allow_user_env aktiv ist, brauchen wir run.sh
-            if ($hasEditableEnv || !empty($startupScript) || $allowUserEnv) {
-                copy(__DIR__ . '/../../helper/run.sh', $addonPath . '/run.sh');
-                chmod($addonPath . '/run.sh', 0755);
 
-                file_put_contents($addonPath . '/original_entrypoint', (is_array($origEntrypoint) && !empty($origEntrypoint)) ? implode(' ', $origEntrypoint) : ($origEntrypoint ?? ''));
-                file_put_contents($addonPath . '/original_cmd', (is_array($origCmd) && !empty($origCmd)) ? implode(' ', $origCmd) : ($origCmd ?? ''));
+        $needsRunSh = ($quirks && ($hasEditableEnv || !empty($startupScript) || $allowUserEnv)) || $allowUserEnv;
 
-                // Dockerfile erstellen
-                $dockerfileTemplate = file_get_contents(__DIR__ . '/../../helper/template.Dockerfile');
-                $dockerfileContent = str_replace('$image', $image, $dockerfileTemplate);
-
-                if ($allowUserEnv) {
-                    $dockerfileContent = str_replace("FROM $image", "FROM $image\nCOPY --from=hairyhenderson/gomplate:stable /gomplate /bin/gomplate", $dockerfileContent);
-                }
-
-                if (!empty($startupScript)) {
-                    file_put_contents($addonPath . '/start.sh', $startupScript);
-                    chmod($addonPath . '/start.sh', 0755);
-                    $dockerfileContent .= "\n# Add startup script\nCOPY start.sh /start.sh\nRUN chmod +x /start.sh\n";
-                }
-
-                // Entrypoint und Command ins Dockerfile schreiben, da config.yaml ignoriert wird
-                $dockerfileContent .= "\nENTRYPOINT [\"/run.sh\"]\n";
-                $dockerfileContent .= "CMD []\n";
-
-                file_put_contents($addonPath . '/Dockerfile', $dockerfileContent);
-            } else {
-                // Quirks an, aber keine Features genutzt -> Standard Dockerfile
-                file_put_contents($addonPath . '/Dockerfile', "FROM $image\n");
-            }
-        } elseif ($allowUserEnv) {
-            // Auch ohne Quirks-Modus: Wenn allow_user_env aktiv ist, brauchen wir run.sh und gomplate
+        if ($needsRunSh) {
             copy(__DIR__ . '/../../helper/run.sh', $addonPath . '/run.sh');
             chmod($addonPath . '/run.sh', 0755);
 
             file_put_contents($addonPath . '/original_entrypoint', (is_array($origEntrypoint) && !empty($origEntrypoint)) ? implode(' ', $origEntrypoint) : ($origEntrypoint ?? ''));
             file_put_contents($addonPath . '/original_cmd', (is_array($origCmd) && !empty($origCmd)) ? implode(' ', $origCmd) : ($origCmd ?? ''));
 
-            $dockerfileTemplate = file_get_contents(__DIR__ . '/../../helper/template.Dockerfile');
-            $dockerfileContent = str_replace('$image', $image, $dockerfileTemplate);
-            
-            $dockerfileContent = str_replace("FROM $image", "FROM $image\nCOPY --from=hairyhenderson/gomplate:stable /gomplate /bin/gomplate", $dockerfileContent);
-            
-            $dockerfileContent .= "\nENTRYPOINT [\"/run.sh\"]\n";
-            $dockerfileContent .= "CMD []\n";
-
-            file_put_contents($addonPath . '/Dockerfile', $dockerfileContent);
-        } else {
-            // "Legacy" Modus: Wir brauchen kein spezielles Dockerfile oder Wrapper-Script
-            // Falls Dateien von vorherigen Versuchen existieren, löschen wir sie lieber nicht (Cleanup könnte riskant sein)
-            // Aber wir stellen sicher, dass das Dockerfile das Image einfach nutzt, falls HA es doch bauen will
-            // Normalerweise reicht bei Angabe von 'image' in config.yaml das Image direkt, 
-            // aber der Converter hat bisher immer ein Dockerfile erstellt.
-            file_put_contents($addonPath . '/Dockerfile', "FROM $image\n");
+            if (!empty($startupScript)) {
+                file_put_contents($addonPath . '/start.sh', $startupScript);
+                chmod($addonPath . '/start.sh', 0755);
+            }
         }
-        
-        // repository.yaml im Haupt-data-Verzeichnis erstellen/aktualisieren (falls nicht vorhanden oder Standardwerte)
-        $this->ensureRepositoryYaml($dataDir);
+    }
 
-        $result = [
-            'status' => 'success',
-            'path' => realpath($addonPath)
-        ];
-        
-        $response->getBody()->write(json_encode($result));
-        return $response->withHeader('Content-Type', 'application/json');
+    private function generateDockerfile(string $addonPath, array $data, string $image): void
+    {
+        [$quirks, $hasEditableEnv] = $this->getQuirksConfig($data);
+        $allowUserEnv = $data['allow_user_env'] ?? false;
+        $startupScript = $data['startup_script'] ?? '';
+
+
+        $dockerfile = new Dockerfile($image);
+
+        $needsRunSh = ($quirks && ($hasEditableEnv || !empty($startupScript) || $allowUserEnv)) || $allowUserEnv;
+
+        if ($needsRunSh) {
+            if ($allowUserEnv) {
+                $dockerfile->addCommand('COPY --from=hairyhenderson/gomplate:stable /gomplate /bin/gomplate');
+            }
+
+            $dockerfile->addCommand("\n# Add wrapper script");
+            $dockerfile->addCommand("COPY run.sh /run.sh");
+            $dockerfile->addCommand("RUN chmod +x /run.sh");
+
+            $dockerfile->addCommand("\n# Add stored original entrypoint/cmd");
+            $dockerfile->addCommand("COPY original_entrypoint /run/original_entrypoint");
+            $dockerfile->addCommand("COPY original_cmd /run/original_cmd");
+
+            if (!empty($startupScript)) {
+                $dockerfile->addCommand("\n# Add startup script");
+                $dockerfile->addCommand("COPY start.sh /start.sh");
+                $dockerfile->addCommand("RUN chmod +x /start.sh");
+            }
+
+            $dockerfile->addCommand("\nENTRYPOINT [\"/run.sh\"]");
+            $dockerfile->addCommand("CMD []");
+        }
+
+        file_put_contents($addonPath . '/' . Dockerfile::FILENAME, (string)$dockerfile);
     }
 
     private function getImageConfig(string $image): array
@@ -294,56 +249,38 @@ class GenerateController
         return $data;
     }
 
-    private function ensureRepositoryYaml($dataDir)
+    private function ensureRepositoryYaml($dataDir): void
     {
-        $repoFile = $dataDir . '/repository.yaml';
+        $repoFile = $dataDir . '/' . HArepository::FILENAME;
         if (!file_exists($repoFile)) {
-            $repoConfig = [
-                'name' => 'My HAOS Add-on Repository',
-                'maintainer' => 'HAOS Add-on Converter'
-            ];
-            file_put_contents($repoFile, Yaml::dump($repoConfig, 4, 2));
+            $haRepository = new HARepository('My HAOS Add-on Repository');
+            $haRepository->setMaintainer('HAOS Add-on Converter');
+            file_put_contents($repoFile, $haRepository);
         }
     }
 
-    private function saveMetadata(string $addonPath, array $newData): void
+    private function saveMetadata(string $addonPath, Metadata $newMetadata): void
     {
-        $metadataFile = $addonPath . '/metadata.json';
-        $metadata = [];
+        $metadataFile = $addonPath . '/' . Metadata::FILENAME;
+        $oldMetadata = [];
         if (file_exists($metadataFile)) {
-            $metadata = json_decode(file_get_contents($metadataFile), true) ?: [];
+            $oldMetadata = json_decode(file_get_contents($metadataFile), true) ?: [];
         }
-        $metadata = array_merge($metadata, $newData);
-        file_put_contents($metadataFile, json_encode($metadata, JSON_PRETTY_PRINT));
+        $metadata = array_merge($oldMetadata, $newMetadata->getAll());
+
+        file_put_contents($metadataFile, new Metadata($metadata));
     }
 
-    private function recursiveCopy($src, $dst)
+    public function getQuirksConfig(array $data): array
     {
-        $src = str_replace('\\', '/', $src);
-        $dst = str_replace('\\', '/', $dst);
-        
-        if (!is_dir($dst)) {
-            mkdir($dst, 0777, true);
-        }
-        
-        $dir = opendir($src);
-        while (false !== ($file = readdir($dir))) {
-            if (($file != '.') && ($file != '..')) {
-                $srcFile = $src . '/' . $file;
-                $dstFile = $dst . '/' . $file;
-                
-                if (is_dir($srcFile)) {
-                    // Wir überspringen das data Verzeichnis und vendor (wird im Dockerfile installiert)
-                    // Wichtig: Wir müssen den relativen Pfad prüfen oder den absoluten Pfad des data-Verzeichnisses
-                    if ($file === 'data' || $file === 'vendor' || $file === '.git' || strpos($srcFile, 'data_self_test') !== false) {
-                        continue;
-                    }
-                    $this->recursiveCopy($srcFile, $dstFile);
-                } else {
-                    copy($srcFile, $dstFile);
-                }
+        $quirks = $data['quirks'] ?? false;
+        $hasEditableEnv = false;
+        foreach ($data['env_vars'] ?? [] as $var) {
+            if (!empty($var['editable'])) {
+                $hasEditableEnv = true;
+                break;
             }
         }
-        closedir($dir);
+        return [$quirks, $hasEditableEnv];
     }
 }
