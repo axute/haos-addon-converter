@@ -177,6 +177,9 @@ function startNew() {
     if (easyMDE) easyMDE.value('');
     if (startupScriptEditor) startupScriptEditor.setValue('');
     
+    const urlInput = document.getElementById('url');
+    if (urlInput) urlInput.value = '';
+    
     resetAccordion();
     
     if (portsContainer) portsContainer.innerHTML = '';
@@ -294,14 +297,15 @@ function getEnvVars() {
     return vars;
 }
 
-function addPortMapping(containerPort = '', hostPort = '') {
+function addPortMapping(containerPort = '', hostPort = '', description = '') {
     const container = document.getElementById('portsContainer');
     const div = document.createElement('div');
     div.className = 'input-group mb-2 port-mapping-row';
     div.innerHTML = `
-        <input type="number" class="form-control port-container" placeholder="Container Port" value="${containerPort}">
+        <input type="number" class="form-control port-container" placeholder="Container Port" value="${containerPort}" style="max-width: 140px;">
         <span class="input-group-text">→</span>
-        <input type="number" class="form-control port-host" placeholder="Host Port" value="${hostPort}">
+        <input type="number" class="form-control port-host" placeholder="Host Port" value="${hostPort}" style="max-width: 140px;">
+        <input type="text" class="form-control port-description" placeholder="Description (optional)" value="${description}">
         <button class="btn btn-outline-danger" type="button" onclick="this.parentElement.remove()">×</button>
     `;
     container.appendChild(div);
@@ -313,8 +317,13 @@ function getPortMappings() {
     rows.forEach(row => {
         const container = row.querySelector('.port-container').value;
         const host = row.querySelector('.port-host').value;
+        const description = row.querySelector('.port-description').value.trim();
         if (container && host) {
-            ports.push({ container: parseInt(container), host: parseInt(host) });
+            ports.push({ 
+                container: parseInt(container), 
+                host: parseInt(host),
+                description: description || null
+            });
         }
     });
     return ports;
@@ -478,6 +487,7 @@ async function handleConverterSubmit(e) {
         quirks: document.getElementById('quirks_mode').checked,
         allow_user_env: document.getElementById('allow_user_env').checked,
         bashio_version: document.getElementById('bashio_version').value,
+        url: document.getElementById('url') ? document.getElementById('url').value : null,
         ports: getPortMappings(),
         map: getMapMappings(),
         env_vars: getEnvVars(),
@@ -544,6 +554,9 @@ async function editAddon(slug) {
     
     const descInput = document.getElementById('description');
     if (descInput) descInput.value = addon.description;
+
+    const urlInput = document.getElementById('url');
+    if (urlInput) urlInput.value = addon.url || '';
 
     if (easyMDE) {
         easyMDE.value(addon.long_description || '');
@@ -670,7 +683,7 @@ async function editAddon(slug) {
         portsContainer.innerHTML = '';
         if (addon.ports && addon.ports.length > 0) {
             addon.ports.forEach(p => {
-                addPortMapping(p.container, p.host);
+                addPortMapping(p.container, p.host, p.description || '');
             });
         }
     }

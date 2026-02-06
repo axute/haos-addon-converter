@@ -28,6 +28,12 @@
                         </div>
 
                         <div class="mb-3">
+                            <label for="url" class="form-label">Homepage / URL</label>
+                            <input type="url" class="form-control" id="url" placeholder="https://github.com/...">
+                            <div class="form-text">Homepage of the app. Here you can explain the app and options.</div>
+                        </div>
+
+                        <div class="mb-3">
                             <label for="long_description" class="form-label">Long Description (Markdown / README.md)</label>
                             <textarea class="form-control" id="long_description" rows="10" placeholder="Detailed description, installation instructions, etc. Supports Markdown."></textarea>
                         </div>
@@ -172,7 +178,7 @@
                         <div class="mb-4">
                             <div class="d-flex justify-content-between align-items-center mb-2">
                                 <label class="form-label mb-0">Port Mappings</label>
-                                <button type="button" class="btn btn-sm btn-ha-outline" onclick="addPort()">
+                                <button type="button" class="btn btn-sm btn-ha-outline" onclick="addPortMapping()">
                                     <span class="mdi mdi-plus"></span> Add Port
                                 </button>
                             </div>

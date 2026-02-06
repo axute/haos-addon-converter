@@ -2,7 +2,7 @@
 
 namespace App\Generator;
 
-use Symfony\Component\Yaml\Yaml;
+use InvalidArgumentException;
 
 class HAconfig extends Yamlfile
 {
@@ -33,6 +33,7 @@ class HAconfig extends Yamlfile
     protected array $schema = [];
     protected bool $tmpfs = false;
     protected array $environment = [];
+    protected ?string $url = null;
 
     public function __construct(protected string $name, protected string $version, protected string $slug, protected string $description, protected array $architectures = self::ARCHITECTURES)
     {
@@ -61,14 +62,18 @@ class HAconfig extends Yamlfile
     public function addPort(int $portContainer, int|null $portHost, string $protocol = 'tcp', ?string $description = null): static
     {
         $this->ports[] = [$portContainer . '/' . $protocol => $portHost];
-        if ($description) $this->ports_description[] = [$portContainer . '/' . $protocol => $description];
+        if (!empty($description)) $this->ports_description[] = [$portContainer . '/' . $protocol => $description];
         return $this;
     }
 
     public function setBoot(string $boot): static
     {
-        if (!in_array($boot, ['auto', 'manual', 'disabled'])) {
-            throw new \InvalidArgumentException('Invalid boot mode');
+        if (!in_array($boot, [
+            'auto',
+            'manual',
+            'disabled'
+        ])) {
+            throw new InvalidArgumentException('Invalid boot mode: ' . var_export($boot, true));
         }
         $this->boot = $boot;
         return $this;
@@ -87,8 +92,17 @@ class HAconfig extends Yamlfile
 
     public function setBackup(?string $backup): static
     {
-        if (!in_array($backup, ['hot', 'cold', null], true)) {
-            throw new \InvalidArgumentException('Invalid backup mode');
+        if (!in_array($backup, [
+            'hot',
+            'cold',
+            'disabled',
+            null
+        ], true)) {
+            throw new InvalidArgumentException('Invalid backup mode: ' . var_export($backup, true));
+        }
+        if ($backup === null || $backup === 'disabled') {
+            $this->backup = null;
+            return $this;
         }
         $this->backup = $backup;
         return $this;
@@ -100,8 +114,11 @@ class HAconfig extends Yamlfile
             $this->webui = null;
             return $this;
         }
-        if (in_array($scheme, ['http', 'https']) === false) {
-            throw new \InvalidArgumentException('Invalid scheme');
+        if (in_array($scheme, [
+                'http',
+                'https'
+            ]) === false) {
+            throw new InvalidArgumentException('Invalid scheme: ' . var_export($scheme, true));
         }
         $this->webui = $scheme . '://[HOST]:[PORT:' . $port . ']' . $path;
         return $this;
@@ -128,6 +145,9 @@ class HAconfig extends Yamlfile
         $config['arch'] = $this->architectures;
         $config['startup'] = $this->startup;
         $config['boot'] = $this->boot;
+        if ($this->url !== null) {
+            $config['url'] = $this->url;
+        }
         if ($this->tmpfs) {
             $config['tmpfs'] = $this->tmpfs;
         }
@@ -164,5 +184,11 @@ class HAconfig extends Yamlfile
             $config['schema'] = $this->schema;
         }
         return $config;
+    }
+
+    public function setUrl(?string $url): HAconfig
+    {
+        $this->url = $url;
+        return $this;
     }
 }

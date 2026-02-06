@@ -183,12 +183,27 @@ class AddonController
 
         $ports = [];
         if (isset($config['ports']) && is_array($config['ports'])) {
+            $portsDescriptions = $config['ports_description'] ?? [];
+
             foreach ($config['ports'] as $containerPort => $hostPort) {
                 // Wir nehmen an, dass es immer /tcp ist oder schneiden es einfach ab
-                $container = (int)str_replace('/tcp', '', $containerPort);
+                $containerStr = (string)$containerPort;
+                $container = (int)str_replace('/tcp', '', $containerStr);
+
+                $description = null;
+                // Suche nach der Beschreibung in ports_description
+                // Das Format in config.yaml ist ports_description: [{ "80/tcp": "Description" }]
+                foreach ($portsDescriptions as $pd) {
+                    if (is_array($pd) && isset($pd[$containerStr])) {
+                        $description = $pd[$containerStr];
+                        break;
+                    }
+                }
+
                 $ports[] = [
-                    'container' => $container,
-                    'host'      => (int)$hostPort
+                    'container'   => $container,
+                    'host'        => (int)$hostPort,
+                    'description' => $description
                 ];
             }
         }
@@ -234,6 +249,7 @@ class AddonController
         $data = [
             'name'             => $config['name'] ?? '',
             'description'      => $config['description'] ?? '',
+            'url'              => $config['url'] ?? null,
             'long_description' => $longDescription,
             'image'            => $image ?: ($config['image'] ?? ''),
             'image_tag'        => $image_tag,
@@ -443,6 +459,7 @@ class AddonController
             'image'          => "ghcr.io/axute/haos-addon-converter:$tag",
             'description'    => 'Web-Converter zum Konvertieren von Docker-Images in Home Assistant Add-ons.',
             'version'        => $newVersion,
+            'url'            => 'https://github.com/axute/haos-addon-converter',
             'ingress'        => true,
             'ingress_port'   => 80,
             'ingress_entry'  => '/',

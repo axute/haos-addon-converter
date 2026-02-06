@@ -132,6 +132,7 @@ class AddonFiles
         $haConfig = new HAconfig(
             $this->data['name'], $this->data['version'] ?? '1.0.0', $this->slug, $this->data['description'] ?? 'Converted HA Add-on',
         );
+        $haConfig->setUrl($this->data['url'] ?? null);
         $haConfig->addEnvironment('HAOS_CONVERTER_BASHIO_VERSION', $this->data['bashio_version'] ?? '0.17.5');
 
         if (!empty($this->data['detected_pm'])) {
@@ -175,7 +176,7 @@ class AddonFiles
         if (!empty($this->data['ports'])) {
             foreach ($this->data['ports'] as $p) {
                 if (!empty($p['container'])) {
-                    $haConfig->addPort($p['container'], $p['host'] ?? null);
+                    $haConfig->addPort($p['container'], $p['host'] ?? null, description: $p['description'] ?? null);
                 }
             }
         }
