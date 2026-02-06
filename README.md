@@ -37,12 +37,13 @@ An optional mode that activates the `run.sh` wrapper to enable advanced features
 ### 🔌 Home Assistant Integration
 - **Ingress Support**: 
   - Seamless access to the web interface via Home Assistant Ingress.
-  - Customizable **Panel Icon** (MDI) for the sidebar.
+  - Customizable **Panel Icon** (MDI) and **Panel Title** for the sidebar.
   - **Ingress Stream** support for WebSockets/VNC.
 - **Web UI Configuration**: Automatic `webui` URL generation (e.g., `http://[HOST]:[PORT:xxxx]/`) if Ingress is disabled.
-- **Storage Mappings (Map)**: Full support for HA storage folders (`config`, `ssl`, `share`, etc.) with `RW`/`RO` modes.
+- **Storage Mappings (Map)**: Full support for HA storage folders (`config`, `ssl`, `share`, etc.) with `RW`/`RO` modes and **custom destination paths** within the container.
 - **Port Mappings**: Easy definition of container-to-host port mappings.
 - **Backup Integration**: Full support for `disabled`, `hot` (online), and `cold` (offline) backup modes with detailed descriptions.
+- **tmpfs Support**: Optional use of memory file system for `/tmp` to improve performance and reduce disk wear.
 
 ### 🎨 User Experience & UI
 - **Accordion-Based Form**: Streamlined editing process organized into four clear sections:
@@ -64,7 +65,7 @@ An optional mode that activates the `run.sh` wrapper to enable advanced features
 - **Management Tools**: 
   - List view showing add-on name, description, version, base image, and **detected package manager badge**.
   - Edit and delete created add-ons.
-  - Global repository settings (Name, Maintainer).
+  - Global repository settings (Name, URL, Maintainer).
 
 ## Prerequisites
 

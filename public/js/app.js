@@ -320,12 +320,12 @@ function getPortMappings() {
     return ports;
 }
 
-function addMapMapping(folder = 'config', mode = 'rw') {
+function addMapMapping(folder = 'config', mode = 'rw', path = '') {
     const container = document.getElementById('mapContainer');
     const div = document.createElement('div');
     div.className = 'input-group mb-2 map-row';
     div.innerHTML = `
-        <select class="form-select map-folder">
+        <select class="form-select map-folder" style="max-width: 120px;">
             <option value="config" ${folder === 'config' ? 'selected' : ''}>config</option>
             <option value="ssl" ${folder === 'ssl' ? 'selected' : ''}>ssl</option>
             <option value="share" ${folder === 'share' ? 'selected' : ''}>share</option>
@@ -333,10 +333,11 @@ function addMapMapping(folder = 'config', mode = 'rw') {
             <option value="addons" ${folder === 'addons' ? 'selected' : ''}>addons</option>
             <option value="backup" ${folder === 'backup' ? 'selected' : ''}>backup</option>
         </select>
-        <select class="form-select map-mode" style="max-width: 100px;">
+        <select class="form-select map-mode" style="max-width: 80px;">
             <option value="rw" ${mode === 'rw' ? 'selected' : ''}>RW</option>
             <option value="ro" ${mode === 'ro' ? 'selected' : ''}>RO</option>
         </select>
+        <input type="text" class="form-control map-path" placeholder="Path (optional, e.g. /data)" value="${path}">
         <button class="btn btn-outline-danger" type="button" onclick="this.parentElement.remove()">×</button>
     `;
     container.appendChild(div);
@@ -348,7 +349,8 @@ function getMapMappings() {
     rows.forEach(row => {
         const folder = row.querySelector('.map-folder').value;
         const mode = row.querySelector('.map-mode').value;
-        maps.push([folder, mode]);
+        const path = row.querySelector('.map-path').value.trim();
+        maps.push({ folder, mode, path: path || null });
     });
     return maps;
 }
@@ -463,10 +465,15 @@ async function handleConverterSubmit(e) {
         version: document.getElementById('version').value,
         ingress: document.getElementById('ingress').checked,
         ingress_port: parseInt(document.getElementById('ingress_port').value),
+        ingress_entry: document.getElementById('ingress_entry').value,
         ingress_stream: document.getElementById('ingress_stream').checked,
         panel_icon: document.getElementById('panel_icon').value || 'mdi:link-variant',
+        panel_title: document.getElementById('panel_title').value,
         webui_port: document.getElementById('web_ui_port').value ? parseInt(document.getElementById('web_ui_port').value) : null,
+        webui_protocol: document.getElementById('web_ui_protocol').value,
+        webui_path: document.getElementById('web_ui_path').value,
         backup: document.querySelector('input[name="backup"]:checked').value,
+        tmpfs: document.getElementById('tmpfs').checked,
         detected_pm: document.getElementById('detected_pm').value,
         quirks: document.getElementById('quirks_mode').checked,
         allow_user_env: document.getElementById('allow_user_env').checked,
@@ -583,20 +590,43 @@ async function editAddon(slug) {
     
     const ingressPortInput = document.getElementById('ingress_port');
     if (ingressPortInput) ingressPortInput.value = addon.ingress_port;
+
+    const ingressEntryInput = document.getElementById('ingress_entry');
+    if (ingressEntryInput) ingressEntryInput.value = addon.ingress_entry || '/';
     
     const ingressStreamCheckbox = document.getElementById('ingress_stream');
     if (ingressStreamCheckbox) ingressStreamCheckbox.checked = addon.ingress_stream || false;
     
     const panelIconInput = document.getElementById('panel_icon');
     if (panelIconInput) panelIconInput.value = addon.panel_icon || 'mdi:link-variant';
+
+    const panelTitleInput = document.getElementById('panel_title');
+    if (panelTitleInput) panelTitleInput.value = addon.panel_title || '';
     
     let webuiPort = '';
+    let webuiProtocol = 'http';
+    let webuiPath = '/';
     if (addon.webui) {
-        const match = addon.webui.match(/\[PORT:(\d+)\]/);
-        if (match) webuiPort = match[1];
+        // Parse "scheme://[HOST]:[PORT:xxxx]/path"
+        const match = addon.webui.match(/^(\w+):\/\/\[HOST\]:\[PORT:(\d+)\](.*)$/);
+        if (match) {
+            webuiProtocol = match[1];
+            webuiPort = match[2];
+            webuiPath = match[3] || '/';
+        } else {
+            // Fallback for simple [PORT:xxxx] if it was ever used like that
+            const portMatch = addon.webui.match(/\[PORT:(\d+)\]/);
+            if (portMatch) webuiPort = portMatch[1];
+        }
     }
     const webUiPortInput = document.getElementById('web_ui_port');
     if (webUiPortInput) webUiPortInput.value = webuiPort;
+
+    const webUiProtocolSelect = document.getElementById('web_ui_protocol');
+    if (webUiProtocolSelect) webUiProtocolSelect.value = webuiProtocol;
+
+    const webUiPathInput = document.getElementById('web_ui_path');
+    if (webUiPathInput) webUiPathInput.value = webuiPath;
     
     const backupDisabled = document.getElementById('backup_disabled');
     if (backupDisabled) backupDisabled.checked = true;
@@ -608,6 +638,9 @@ async function editAddon(slug) {
         const backupCold = document.getElementById('backup_cold');
         if (backupCold) backupCold.checked = true;
     }
+
+    const tmpfsCheckbox = document.getElementById('tmpfs');
+    if (tmpfsCheckbox) tmpfsCheckbox.checked = addon.tmpfs || false;
     
     const detectedPmInput = document.getElementById('detected_pm');
     if (detectedPmInput) detectedPmInput.value = addon.detected_pm || 'unknown';
@@ -647,7 +680,13 @@ async function editAddon(slug) {
         mapContainer.innerHTML = '';
         if (addon.map && addon.map.length > 0) {
             addon.map.forEach(m => {
-                addMapMapping(m);
+                if (typeof m === 'object' && m !== null) {
+                    addMapMapping(m.type || m.folder, m.readOnly ? 'ro' : (m.mode || 'rw'), m.path || '');
+                } else if (typeof m === 'string') {
+                    // Fallback für altes Format falls nötig (folder:mode)
+                    const parts = m.split(':');
+                    addMapMapping(parts[0], parts[1] || 'rw');
+                }
             });
         }
     }
@@ -822,6 +861,9 @@ async function openSettings() {
     const settings = await response.json();
     document.getElementById('repo_name').value = settings.name;
     document.getElementById('repo_maintainer').value = settings.maintainer;
+    if (document.getElementById('repo_url')) {
+        document.getElementById('repo_url').value = settings.url || '';
+    }
 }
 
 function closeSettings() {
@@ -833,7 +875,8 @@ async function handleSettingsSubmit(e) {
     e.preventDefault();
     const data = {
         name: document.getElementById('repo_name').value,
-        maintainer: document.getElementById('repo_maintainer').value
+        maintainer: document.getElementById('repo_maintainer').value,
+        url: document.getElementById('repo_url') ? document.getElementById('repo_url').value : ''
     };
     const response = await fetch(`${basePath}/settings`, {
         method: 'POST',

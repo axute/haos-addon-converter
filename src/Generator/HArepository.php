@@ -55,4 +55,15 @@ class HArepository extends Yamlfile
     {
         return $this->url;
     }
+
+    public function setName(string $name): HArepository
+    {
+        $this->name = $name;
+        return $this;
+    }
+
+    public function getName(): string
+    {
+        return $this->name;
+    }
 }

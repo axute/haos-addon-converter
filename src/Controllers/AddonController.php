@@ -189,6 +189,9 @@ class AddonController
             if (isset($metadata['allow_user_env'])) {
                 $allowUserEnv = (bool)$metadata['allow_user_env'];
             }
+            if (isset($metadata['tmpfs'])) {
+                $tmpfs = (bool)$metadata['tmpfs'];
+            }
             if (isset($metadata['bashio_version'])) {
                 $bashioVersion = $metadata['bashio_version'];
             }
@@ -211,10 +214,13 @@ class AddonController
             'version' => $config['version'] ?? '',
             'ingress' => $config['ingress'] ?? false,
             'ingress_port' => $config['ingress_port'] ?? 80,
+            'ingress_entry' => $config['ingress_entry'] ?? '/',
             'ingress_stream' => $config['ingress_stream'] ?? false,
             'panel_icon' => $config['panel_icon'] ?? 'mdi:link-variant',
+            'panel_title' => $config['panel_title'] ?? null,
             'webui' => $config['webui'] ?? '',
             'backup' => $config['backup'] ?? 'disabled',
+            'tmpfs' => $tmpfs ?? (bool)($config['tmpfs'] ?? false),
             'detected_pm' => $detectedPm,
             'has_local_icon' => $hasLocalIcon,
             'icon_file' => $iconFileContent,

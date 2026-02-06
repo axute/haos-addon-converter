@@ -7,9 +7,12 @@
             <div><strong>Quirks:</strong> {{ addon.quirks ? 'Ja' : 'Nein' }}{% if addon.allow_user_env %} (User Env: Ja){% endif %}</div>
         </div>
         <div class="col-12 col-md-6">
-            <div><strong>Ingress:</strong> {{ addon.ingress ? 'Enabled (' ~ addon.ingress_port ~ (addon.ingress_stream ? ', stream' : '') ~ ')' : 'Disabled' }}</div>
+            <div><strong>Ingress:</strong> {{ addon.ingress ? 'Enabled (' ~ addon.ingress_port ~ (addon.ingress_stream ? ', stream' : '') ~ ', ' ~ addon.ingress_entry ~ ')' : 'Disabled' }}</div>
+            {% if addon.ingress and addon.panel_title is not empty %}
+                <div><strong>Panel Title:</strong> {{ addon.panel_title }}</div>
+            {% endif %}
             {% if addon.webui is not empty %}
-                <div><strong>WebUI Port:</strong> {{ addon.webui }}</div>
+                <div><strong>WebUI:</strong> <code>{{ addon.webui }}</code></div>
             {% endif %}
             <div><strong>Ports:</strong> 
                 {% set ports = [] %}
@@ -18,7 +21,14 @@
                 {% endfor %}
                 {{ ports is not empty ? ports|join(', ') : '—' }}
             </div>
-            <div><strong>Mounts:</strong> {{ addon.map is not empty ? addon.map|join(', ') : '—' }}</div>
+            <div><strong>Mounts:</strong> 
+                {% set mounts = [] %}
+                {% for m in (addon.map ?: []) %}
+                    {% set mountStr = m.type|default(m.folder) ~ (m.path is not empty ? ':' ~ m.path : '') ~ ' (' ~ (m.readOnly ? 'RO' : 'RW') ~ ')' %}
+                    {% set mounts = mounts|merge([mountStr]) %}
+                {% endfor %}
+                {{ mounts is not empty ? mounts|join(', ') : '—' }}
+            </div>
         </div>
         <div class="col-12">
             <div><strong>Env:</strong> 
@@ -33,6 +43,7 @@
                     —
                 {% endif %}
             </div>
+            <div><strong>tmpfs:</strong> {{ addon.tmpfs ? 'Enabled' : 'Disabled' }}</div>
         </div>
     </div>
 </div>

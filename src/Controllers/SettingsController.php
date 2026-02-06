@@ -22,6 +22,7 @@ class SettingsController
 
         if (file_exists($repoFile)) {
             $existing = HArepository::fromFile($repoFile);
+            $haRepository->setName($existing->getName());
             $haRepository->setMaintainer($existing->getMaintainer());
             $haRepository->setUrl($existing->getUrl());
         }
@@ -37,6 +38,7 @@ class SettingsController
 
         $name = $data['name'] ?? 'My HAOS Add-on Repository';
         $maintainer = $data['maintainer'] ?? 'HAOS Add-on Converter';
+        $url = $data['url'] ?? null;
 
         $dataDir = $this->getDataDir();
         if (!is_dir($dataDir)) {
@@ -46,6 +48,9 @@ class SettingsController
         $repoFile = $dataDir . '/' . HArepository::FILENAME;
         $haRepository = new HArepository($name);
         $haRepository->setMaintainer($maintainer);
+        if (!empty($url)) {
+            $haRepository->setUrl($url);
+        }
 
         file_put_contents($repoFile, $haRepository);
 

@@ -47,6 +47,7 @@ class GenerateController
         $addonMetadata->add('detected_pm', $data['detected_pm'] ?? null);
         $addonMetadata->add('quirks', $data['quirks'] ?? false);
         $addonMetadata->add('allow_user_env', $data['allow_user_env'] ?? false);
+        $addonMetadata->add('tmpfs', $data['tmpfs'] ?? false);
         $addonMetadata->add('bashio_version', $data['bashio_version'] ?? '0.17.5');
         $addonMetadata->add('has_startup_script', !empty($data['startup_script'] ?? ''));
         $addonMetadata->add('original_entrypoint', $origEntrypoint);
@@ -100,19 +101,33 @@ class GenerateController
             $haConfig->setIngress(
                 port: $data['ingress_port'] ?? 80,
                 stream: !empty($data['ingress_stream']),
-                icon: $data['panel_icon'] ?? null);
+                title: $data['panel_title'] ?? null,
+                icon: $data['panel_icon'] ?? null,
+                ingressEntry: $data['ingress_entry'] ?? '/'
+            );
         } elseif (!empty($data['webui_port'])) {
-            $haConfig->setWebUI(port: $data['webui_port']);
+            $haConfig->setWebUI(
+                port: $data['webui_port'],
+                path: $data['webui_path'] ?? '/',
+                scheme: $data['webui_protocol'] ?? 'http'
+            );
         }
 
         if (isset($data['backup'])) {
             $haConfig->setBackup($data['backup']);
         }
 
+        if (isset($data['tmpfs'])) {
+            $haConfig->setTmpfs((bool)$data['tmpfs']);
+        }
+
         if (!empty($data['map'])) {
             foreach ($data['map'] as $map) {
-                /** @var string[] $map */
-                $haConfig->addMap(type: $map[0], readOnly: $map[1] === 'ro');
+                $haConfig->addMap(
+                    type: $map['folder'],
+                    readOnly: $map['mode'] === 'ro',
+                    path: $map['path'] ?? null
+                );
             }
         }
 

@@ -128,7 +128,9 @@ class HAconfig extends Yamlfile
         $config['arch'] = $this->architectures;
         $config['startup'] = $this->startup;
         $config['boot'] = $this->boot;
-        $config['tmpfs'] = $this->tmpfs;
+        if ($this->tmpfs) {
+            $config['tmpfs'] = $this->tmpfs;
+        }
         if ($this->backup !== null) {
             $config['backup'] = $this->backup;
         }

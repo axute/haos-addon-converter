@@ -107,8 +107,16 @@
                                     <input type="number" class="form-control" id="ingress_port" value="80">
                                 </div>
                                 <div class="col-md-6 mb-3">
+                                    <label for="ingress_entry" class="form-label">Ingress Entry Path</label>
+                                    <input type="text" class="form-control" id="ingress_entry" value="/">
+                                </div>
+                                <div class="col-md-6 mb-3">
                                     <label for="panel_icon" class="form-label">Panel Icon (MDI)</label>
                                     <input type="text" class="form-control" id="panel_icon" placeholder="mdi:link-variant">
+                                </div>
+                                <div class="col-md-6 mb-3">
+                                    <label for="panel_title" class="form-label">Panel Title (optional)</label>
+                                    <input type="text" class="form-control" id="panel_title" placeholder="Defaults to add-on name">
                                 </div>
                             </div>
                             <div class="form-check">
@@ -120,8 +128,23 @@
                         </div>
 
                         <div id="webUiPortContainer" class="mb-3">
-                            <label for="web_ui_port" class="form-label">Web UI Port (without Ingress)</label>
-                            <input type="number" class="form-control" id="web_ui_port" placeholder="e.g. 8080">
+                            <div class="row">
+                                <div class="col-md-4 mb-3">
+                                    <label for="web_ui_port" class="form-label">Web UI Port (without Ingress)</label>
+                                    <input type="number" class="form-control" id="web_ui_port" placeholder="e.g. 8080">
+                                </div>
+                                <div class="col-md-4 mb-3">
+                                    <label for="web_ui_protocol" class="form-label">Protocol</label>
+                                    <select class="form-select" id="web_ui_protocol">
+                                        <option value="http" selected>http</option>
+                                        <option value="https">https</option>
+                                    </select>
+                                </div>
+                                <div class="col-md-4 mb-3">
+                                    <label for="web_ui_path" class="form-label">Web UI Path</label>
+                                    <input type="text" class="form-control" id="web_ui_path" value="/">
+                                </div>
+                            </div>
                         </div>
 
                         <div class="mb-3">
@@ -189,7 +212,15 @@
                                 </button>
                             </div>
                             <div id="mapContainer"></div>
-                            <div class="form-text mt-2">Format: <code>config:/config</code> or <code>share:/share</code></div>
+                            <div class="form-text mt-2">Format: Choose folder, mode and optional path (e.g. <code>/data</code>).</div>
+                        </div>
+
+                        <div class="form-check form-switch mb-3">
+                            <input class="form-check-input" type="checkbox" id="tmpfs">
+                            <label class="form-check-label" for="tmpfs">
+                                <strong>Enable tmpfs</strong>
+                            </label>
+                            <div class="form-text">If this is set to true, the containers /tmp uses tmpfs, a memory file system.</div>
                         </div>
                     </div>
                 </div>
