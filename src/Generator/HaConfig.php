@@ -67,8 +67,10 @@ class HaConfig extends Yamlfile
 
     public function addPort(int $portContainer, int|null $portHost, string $protocol = 'tcp', ?string $description = null): static
     {
-        $this->ports[] = [$portContainer . '/' . $protocol => $portHost];
-        if (!empty($description)) $this->ports_description[] = [$portContainer . '/' . $protocol => $description];
+        $this->ports[$portContainer . '/' . $protocol] = $portHost;
+        if (!empty($description)) {
+            $this->ports_description[$portContainer . '/' . $protocol] = $description;
+        }
         return $this;
     }
 
@@ -88,7 +90,7 @@ class HaConfig extends Yamlfile
     public function addMap(string $type, bool $readOnly, ?string $path = null): static
     {
         $entry = [
-            'type' => $type,
+            'type'      => $type,
             'read_only' => $readOnly,
         ];
         if ($path) $entry['path'] = $path;
