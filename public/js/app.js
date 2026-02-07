@@ -86,6 +86,27 @@ document.addEventListener('DOMContentLoaded', () => {
         allowUserEnvCheckboxGlobal.addEventListener('change', toggleEditableCheckboxes);
     }
 
+    // Icon handling
+    const iconFileInput = document.getElementById('icon_file');
+    if (iconFileInput) {
+        iconFileInput.addEventListener('change', function(e) {
+            const file = e.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = function(event) {
+                iconBase64 = event.target.result;
+                const iconPreview = document.getElementById('icon_preview');
+                if (iconPreview) {
+                    const previewImg = iconPreview.querySelector('img');
+                    if (previewImg) previewImg.src = iconBase64;
+                    iconPreview.style.display = 'block';
+                }
+            };
+            reader.readAsDataURL(file);
+        });
+    }
+
     // Form Submissions
     const converterForm = document.getElementById('converterForm');
     if (converterForm) {

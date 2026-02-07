@@ -15,6 +15,20 @@ class HArepository extends Yamlfile
 
     }
 
+    public static function getInstance(): ?static
+    {
+        $dataDir = self::getDataDir();
+        $repositoryFile = $dataDir . '/' . self::FILENAME;
+        if (is_file($repositoryFile) === false) {
+            return null;
+        } else return self::fromFile($repositoryFile);
+    }
+
+    protected static function getDataDir(): string
+    {
+        return getenv('CONVERTER_DATA_DIR') ?: __DIR__ . '/../../data';
+    }
+
     public static function fromFile(string $file): static
     {
         $content = Yaml::parseFile($file);
@@ -22,18 +36,6 @@ class HArepository extends Yamlfile
         if (isset($content['maintainer'])) $instance->setMaintainer($content['maintainer']);
         if (isset($content['url'])) $instance->setUrl($content['url']);
         return $instance;
-    }
-
-    public function setMaintainer(?string $maintainer): static
-    {
-        $this->maintainer = $maintainer;
-        return $this;
-    }
-
-    public function setUrl(?string $url): static
-    {
-        $this->url = $url;
-        return $this;
     }
 
     public function jsonSerialize(): array
@@ -51,9 +53,21 @@ class HArepository extends Yamlfile
         return $this->maintainer;
     }
 
+    public function setMaintainer(?string $maintainer): static
+    {
+        $this->maintainer = $maintainer;
+        return $this;
+    }
+
     public function getUrl(): ?string
     {
         return $this->url;
+    }
+
+    public function setUrl(?string $url): static
+    {
+        $this->url = $url;
+        return $this;
     }
 
     public function setName(string $name): HArepository

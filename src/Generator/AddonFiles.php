@@ -39,10 +39,32 @@ class AddonFiles
         $this->dataDir = str_replace('\\', '/', $this->getDataDir());
         $this->addonPath = $this->dataDir . '/' . $this->slug;
         if (!is_dir($this->addonPath)) {
-            if(@mkdir($this->addonPath, 0777, true) === false) {
+            if (@mkdir($this->addonPath, 0777, true) === false) {
                 throw new RuntimeException('Could not create directory ' . $this->addonPath);
             }
         }
+    }
+
+    private function generateSlug(): string
+    {
+        if ($this->isSelfConvert) {
+            return 'haos_addon_converter';
+        }
+
+        $slug = strtolower($this->addonName);
+        $slug = str_replace([
+            ' ',
+            '-',
+            '.'
+        ], '_', $slug);
+        $slug = preg_replace('/[^a-z0-9_]/', '', $slug);
+        $slug = preg_replace('/_+/', '_', $slug);
+        return trim($slug, '_');
+    }
+
+    protected function getDataDir(): string
+    {
+        return getenv('CONVERTER_DATA_DIR') ?: __DIR__ . '/../../data';
     }
 
     public function create(): array
@@ -77,30 +99,6 @@ class AddonFiles
             'status' => 'success',
             'path'   => realpath($this->addonPath)
         ];
-
-
-    }
-
-    private function generateSlug(): string
-    {
-        if ($this->isSelfConvert) {
-            return 'haos_addon_converter';
-        }
-
-        $slug = strtolower($this->addonName);
-        $slug = str_replace([
-            ' ',
-            '-',
-            '.'
-        ], '_', $slug);
-        $slug = preg_replace('/[^a-z0-9_]/', '', $slug);
-        $slug = preg_replace('/_+/', '_', $slug);
-        return trim($slug, '_');
-    }
-
-    private function getDataDir(): string
-    {
-        return getenv('CONVERTER_DATA_DIR') ?: __DIR__ . '/../../data';
     }
 
     private function getImageConfig(): array
@@ -109,7 +107,7 @@ class AddonFiles
         $output = shell_exec($command);
         $data = json_decode($output, true);
         if (json_last_error() !== JSON_ERROR_NONE) {
-            throw new \RuntimeException(json_last_error_msg());
+            throw new RuntimeException(json_last_error_msg());
         }
         return $data;
     }
@@ -209,12 +207,16 @@ class AddonFiles
     protected function handleIcon(string $iconFile): static
     {
         if (!empty($iconFile)) {
-            if (preg_match('/^data:image\/(\w+);base64,/', $iconFile)) {
+            if (preg_match('/^data:image\/(\w+);base64,/', $iconFile, $type)) {
                 $iconData = substr($iconFile, strpos($iconFile, ',') + 1);
                 $iconData = base64_decode($iconData);
                 if ($iconData !== false) {
                     file_put_contents($this->addonPath . '/icon.png', $iconData);
+                } else {
+                    throw new InvalidArgumentException('Could not decode base64');
                 }
+            } else {
+                throw new InvalidArgumentException('Invalid icon format: ' . $type[1]);
             }
         }
         return $this;
@@ -227,13 +229,10 @@ class AddonFiles
         $description = $this->data['description'] ?? 'Converted HA Add-on';
 
         if (!empty($longDescription)) {
-            $readmeContent = $longDescription;
-            if (file_exists($this->addonPath . '/icon.png') && !str_contains($readmeContent, '![Logo](icon.png)')) {
-                $readmeContent = "![Logo](icon.png)\n\n" . $readmeContent;
-            }
-            file_put_contents($this->addonPath . '/README.md', $readmeContent);
+
+            file_put_contents($this->addonPath . '/README.md', $longDescription);
         } elseif (file_exists($this->addonPath . '/icon.png')) {
-            file_put_contents($this->addonPath . '/README.md', "![Logo](icon.png)\n\n# $addonName\n\n$description");
+            file_put_contents($this->addonPath . '/README.md', "# $addonName\n\n$description");
         }
         return $this;
     }
@@ -258,6 +257,7 @@ class AddonFiles
             }
         }
     }
+
     private function generateDockerfile(): void
     {
         $allowUserEnv = $this->data['allow_user_env'] ?? false;
