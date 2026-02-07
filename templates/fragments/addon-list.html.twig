@@ -17,7 +17,7 @@
                     <div class="d-flex align-items-center">
                         <div class="me-3 text-center" style="width: 40px; font-size: 24px;">
                             {% if addon.has_local_icon %}
-                                <img src="{{ basePath }}/addons/{{ addon.slug }}/icon.png" style="width: 32px; height: 32px;">
+                                <img src="{{ basePath }}/addons/{{ addon.slug }}/icon.png" style="width: 32px; height: 32px;" alt="{{ addon.slug }}">
                             {% else %}
                                 📦
                             {% endif %}
@@ -33,7 +33,7 @@
                             <small class="text-muted d-block">{{ addon.description }}</small>
                             <small class="text-muted">Version: {{ addon.version }}</small>
                             <div class="mt-1 d-flex align-items-center flex-wrap">
-                                <small class="text-muted">Image: <code>{{ addon.image }}</code></small>
+                                <small class="text-muted">Image: <code>{{ addon.image }}:{{ addon.image_tag }}</code></small>
                                 <div id="update-status-{{ addon.slug }}" 
                                       hx-get="{{ basePath }}/fragments/check-update/{{ addon.slug }}" 
                                       hx-trigger="load" 

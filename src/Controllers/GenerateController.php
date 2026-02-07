@@ -2,10 +2,10 @@
 
 namespace App\Controllers;
 
-use App\Generator\{AddonFiles, Dockerfile, HAconfig, HArepository, Metadata};
+use App\Addon\FilesWriter;
 use Psr\Http\Message\{ResponseInterface as Response, ServerRequestInterface as Request};
 
-class GenerateController
+class GenerateController extends ControllerAbstract
 {
 
     public function generate(Request $request, Response $response): Response
@@ -14,14 +14,11 @@ class GenerateController
         $data = json_decode($body, true);
 
         try {
-            $addonFiles = new AddonFiles($data);
+            $addonFiles = new FilesWriter($data);
             $result = $addonFiles->create();
-            $response->getBody()->write(json_encode($result));
-            return $response->withHeader('Content-Type', 'application/json');
+            return $this->success($response, $result);
         } catch (\Exception $exception) {
-            $response->getBody()->write(json_encode(['status' => 'error', 'message' => $exception->getMessage()]));
-            return $response->withHeader('Content-Type', 'application/json')->withStatus(400);
-
+            return $this->errorMessage($response, $exception->getMessage());
         }
     }
 

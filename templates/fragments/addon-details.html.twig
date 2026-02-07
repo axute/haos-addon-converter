@@ -17,7 +17,11 @@
             <div><strong>Ports:</strong> 
                 {% set ports = [] %}
                 {% for p in (addon.ports ?: []) %}
-                    {% set ports = ports|merge([p.host ~ ':' ~ p.container]) %}
+                    {% if p.host is not empty %}
+                        {% set ports = ports|merge([p.host ~ ':' ~ p.container]) %}
+                    {% else %}
+                        {% set ports = ports|merge(['~:'~ p.container]) %}
+                    {% endif %}
                 {% endfor %}
                 {{ ports is not empty ? ports|join(', ') : '—' }}
             </div>

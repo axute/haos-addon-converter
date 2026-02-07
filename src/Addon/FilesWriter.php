@@ -1,11 +1,16 @@
 <?php
 
-namespace App\Generator;
+namespace App\Addon;
 
+use App\Generator\Dockerfile;
+use App\Generator\HaConfig;
+use App\Generator\HaRepository;
+use App\Generator\Metadata;
+use App\Tools\Crane;
 use InvalidArgumentException;
 use RuntimeException;
 
-class AddonFiles
+class FilesWriter extends FilesAbstract
 {
     protected bool $quirks = false;
     protected bool $hasEditableEnv = false;
@@ -62,34 +67,15 @@ class AddonFiles
         return trim($slug, '_');
     }
 
-    protected function getDataDir(): string
-    {
-        return getenv('CONVERTER_DATA_DIR') ?: __DIR__ . '/../../data';
-    }
-
     public function create(): array
     {
 
-        // Metadaten initial speichern/laden
-        $imageConfig = $this->getImageConfig();
-        $origEntrypoint = $imageConfig['config']['Entrypoint'] ?? null;
-        $origCmd = $imageConfig['config']['Cmd'] ?? null;
-        $addonMetadata = new Metadata();
-        $addonMetadata->add('detected_pm', $this->data['detected_pm'] ?? null);
-        $addonMetadata->add('quirks', $this->data['quirks'] ?? false);
-        $addonMetadata->add('allow_user_env', $this->data['allow_user_env'] ?? false);
-        $addonMetadata->add('tmpfs', $this->data['tmpfs'] ?? false);
-        $addonMetadata->add('bashio_version', $this->data['bashio_version'] ?? '0.17.5');
-        $addonMetadata->add('has_startup_script', !empty($this->data['startup_script'] ?? ''));
-        $addonMetadata->add('original_entrypoint', $origEntrypoint);
-        $addonMetadata->add('original_cmd', $origCmd);
-        $this->saveMetadata($addonMetadata);
-
+        $this->generateMetadata();
         // Dateien generieren
         $this->generateConfigYaml();
-        $this->handleIcon($this->data['icon_file'] ?? '');
+        $this->generateIcon($this->data['icon_file'] ?? '');
         $this->generateReadme();
-        $this->handleHelperFiles($origEntrypoint, $origCmd);
+
         $this->generateDockerfile();
 
         // repository.yaml im Haupt-data-Verzeichnis erstellen/aktualisieren
@@ -112,22 +98,35 @@ class AddonFiles
         return $data;
     }
 
-    protected function saveMetadata(Metadata $newMetadata): static
+    protected function generateMetadata(): static
     {
+        // Metadaten initial speichern/laden
+        $imageConfig = Crane::getConfig($this->image);
+        $origEntrypoint = $imageConfig['config']['Entrypoint'] ?? null;
+        $origCmd = $imageConfig['config']['Cmd'] ?? null;
+        $newMetadata = new Metadata();
+        $newMetadata->add('detected_pm', $this->data['detected_pm'] ?? null);
+        $newMetadata->add('quirks', $this->data['quirks'] ?? false);
+        $newMetadata->add('allow_user_env', $this->data['allow_user_env'] ?? false);
+        $newMetadata->add('tmpfs', $this->data['tmpfs'] ?? false);
+        $newMetadata->add('bashio_version', $this->data['bashio_version'] ?? '0.17.5');
+        $newMetadata->add('has_startup_script', !empty($this->data['startup_script'] ?? ''));
+        $newMetadata->add('original_entrypoint', $origEntrypoint);
+        $newMetadata->add('original_cmd', $origCmd);
         $metadataFile = $this->addonPath . '/' . Metadata::FILENAME;
         $oldMetadata = [];
         if (file_exists($metadataFile)) {
             $oldMetadata = json_decode(file_get_contents($metadataFile), true) ?: [];
         }
         $metadata = array_merge($oldMetadata, $newMetadata->getAll());
-
         file_put_contents($metadataFile, new Metadata($metadata));
+        $this->generateHelperFiles($origEntrypoint, $origCmd);
         return $this;
     }
 
     protected function generateConfigYaml(): static
     {
-        $haConfig = new HAconfig(
+        $haConfig = new HaConfig(
             $this->data['name'], $this->data['version'] ?? '1.0.0', $this->slug, $this->data['description'] ?? 'Converted HA Add-on',
         );
         $haConfig->setUrl($this->data['url'] ?? null);
@@ -200,11 +199,11 @@ class AddonFiles
             }
         }
 
-        file_put_contents($this->addonPath . '/' . HAconfig::FILENAME, $haConfig);
+        file_put_contents($this->addonPath . '/' . HaConfig::FILENAME, $haConfig);
         return $this;
     }
 
-    protected function handleIcon(string $iconFile): static
+    protected function generateIcon(string $iconFile): static
     {
         if (!empty($iconFile)) {
             if (preg_match('/^data:image\/(\w+);base64,/', $iconFile, $type)) {
@@ -237,7 +236,7 @@ class AddonFiles
         return $this;
     }
 
-    private function handleHelperFiles($origEntrypoint, $origCmd): void
+    private function generateHelperFiles($origEntrypoint, $origCmd): void
     {
         $allowUserEnv = $this->data['allow_user_env'] ?? false;
         $startupScript = $this->data['startup_script'] ?? '';
@@ -296,9 +295,9 @@ class AddonFiles
 
     private function ensureRepositoryYaml(): void
     {
-        $repoFile = $this->dataDir . '/' . HArepository::FILENAME;
+        $repoFile = $this->dataDir . '/' . HaRepository::FILENAME;
         if (!file_exists($repoFile)) {
-            $haRepository = new HARepository('My HAOS Add-on Repository');
+            $haRepository = new HaRepository('My HAOS Add-on Repository');
             $haRepository->setMaintainer('HAOS Add-on Converter');
             file_put_contents($repoFile, $haRepository);
         }

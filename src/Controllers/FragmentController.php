@@ -2,17 +2,14 @@
 
 namespace App\Controllers;
 
+use App\Addon\FilesReader;
 use App\View;
 use Psr\Http\Message\ResponseInterface as Response;
 use Psr\Http\Message\ServerRequestInterface as Request;
 use Symfony\Component\Yaml\Yaml;
 
-class FragmentController
+class FragmentController extends ControllerAbstract
 {
-    private function getDataDir(): string
-    {
-        return getenv('CONVERTER_DATA_DIR') ?: __DIR__ . '/../../data';
-    }
 
     private function render(Response $response, string $template, array $data = []): Response
     {
@@ -38,12 +35,7 @@ class FragmentController
     public function addonDetails(Request $request, Response $response, array $args): Response
     {
         $slug = $args['slug'];
-        $addonController = new AddonController();
-        // Hier rufen wir die get() Methode auf und parsen das JSON
-        $tempResponse = new \Slim\Psr7\Response();
-        $detailsResponse = $addonController->get($request, $tempResponse, ['slug' => $slug]);
-        $details = json_decode((string)$detailsResponse->getBody(), true);
-
+        $details = (new FilesReader($slug))->jsonSerialize();
         return $this->render($response, 'addon-details', [
             'addon' => $details,
             'slug' => $slug

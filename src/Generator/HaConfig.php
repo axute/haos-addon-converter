@@ -4,7 +4,7 @@ namespace App\Generator;
 
 use InvalidArgumentException;
 
-class HAconfig extends Yamlfile
+class HaConfig extends Yamlfile
 {
     public const string FILENAME = 'config.yaml';
     public const array ARCHITECTURES = [
@@ -186,7 +186,7 @@ class HAconfig extends Yamlfile
         return $config;
     }
 
-    public function setUrl(?string $url): HAconfig
+    public function setUrl(?string $url): HaConfig
     {
         $this->url = $url;
         return $this;

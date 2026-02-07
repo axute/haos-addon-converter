@@ -89,12 +89,12 @@ document.addEventListener('DOMContentLoaded', () => {
     // Icon handling
     const iconFileInput = document.getElementById('icon_file');
     if (iconFileInput) {
-        iconFileInput.addEventListener('change', function(e) {
+        iconFileInput.addEventListener('change', function (e) {
             const file = e.target.files[0];
             if (!file) return;
 
             const reader = new FileReader();
-            reader.onload = function(event) {
+            reader.onload = function (event) {
                 iconBase64 = event.target.result;
                 const iconPreview = document.getElementById('icon_preview');
                 if (iconPreview) {
@@ -136,15 +136,15 @@ function haConfirm(message, onConfirm, title = 'Confirm', confirmText = 'OK', co
 
     if (titleEl) titleEl.innerText = title;
     if (messageEl) messageEl.innerHTML = message;
-    
+
     if (confirmBtn) {
         confirmBtn.innerText = confirmText;
         confirmBtn.className = `btn btn-sm px-4 ${confirmClass}`;
-        
+
         // Remove old listeners
         const newConfirmBtn = confirmBtn.cloneNode(true);
         confirmBtn.parentNode.replaceChild(newConfirmBtn, confirmBtn);
-        
+
         newConfirmBtn.addEventListener('click', () => {
             onConfirm();
             const modal = bootstrap.Modal.getInstance(modalEl);
@@ -159,7 +159,7 @@ function haConfirm(message, onConfirm, title = 'Confirm', confirmText = 'OK', co
 function resetAccordion() {
     const accordionItems = document.querySelectorAll('#formAccordion .accordion-collapse');
     accordionItems.forEach((item, index) => {
-        const collapse = bootstrap.Collapse.getOrCreateInstance(item, { toggle: false });
+        const collapse = bootstrap.Collapse.getOrCreateInstance(item, {toggle: false});
         if (index === 0) {
             collapse.show();
         } else {
@@ -180,7 +180,7 @@ function startNew() {
     const envVarsContainer = document.getElementById('envVarsContainer');
     const iconPreview = document.getElementById('icon_preview');
     const detectedPm = document.getElementById('detected_pm');
-    
+
     if (addonSelection) addonSelection.style.display = 'none';
     if (converterForm) {
         converterForm.style.display = 'block';
@@ -189,33 +189,33 @@ function startNew() {
     if (cancelBtn) cancelBtn.style.display = 'block';
     if (submitSection) submitSection.style.display = 'block';
     if (updateSection) updateSection.style.display = 'none';
-    
+
     if (version) {
         version.readOnly = false;
         version.value = '1.0.0';
     }
-    
+
     if (easyMDE) easyMDE.value('');
     if (startupScriptEditor) startupScriptEditor.setValue('');
-    
+
     const urlInput = document.getElementById('url');
     if (urlInput) urlInput.value = '';
-    
+
     resetAccordion();
-    
+
     if (portsContainer) portsContainer.innerHTML = '';
     if (mapContainer) mapContainer.innerHTML = '';
     if (envVarsContainer) envVarsContainer.innerHTML = '';
     if (iconPreview) iconPreview.style.display = 'none';
-    
+
     iconBase64 = '';
-    
+
     if (detectedPm) detectedPm.value = '';
     const btnDetectPM = document.getElementById('btnDetectPM');
     if (btnDetectPM) btnDetectPM.disabled = false;
     const hint = document.getElementById('pmSupportInline');
     if (hint) hint.innerHTML = '';
-    
+
     toggleEditableCheckboxes();
 }
 
@@ -232,7 +232,7 @@ function cancelConverter() {
         if (addonSelection) addonSelection.style.display = 'block';
         if (cancelBtn) cancelBtn.style.display = 'none';
         if (resultDiv) resultDiv.style.display = 'none';
-        
+
         // Refresh list if htmx is present
         if (typeof htmx !== 'undefined') {
             document.body.dispatchEvent(new Event('reload'));
@@ -267,7 +267,7 @@ async function deleteAddon(slug) {
 function handleIconSelect(input) {
     if (input.files && input.files[0]) {
         const reader = new FileReader();
-        reader.onload = function(e) {
+        reader.onload = function (e) {
             iconBase64 = e.target.result;
             const preview = document.getElementById('icon_preview');
             const previewImg = preview.querySelector('img');
@@ -297,7 +297,7 @@ function addEnvVar(key = '', value = '', editable = false) {
 function checkEnvWarnings() {
     const envWarning = document.getElementById('envWarning');
     if (!envWarning) return;
-    
+
     const quirksMode = document.getElementById('quirks_mode');
     const quirksEnabled = quirksMode ? quirksMode.checked : false;
     const editables = document.querySelectorAll('.env-editable:checked');
@@ -312,7 +312,7 @@ function getEnvVars() {
         const value = row.querySelector('.env-value').value;
         const editable = row.querySelector('.env-editable').checked;
         if (key) {
-            vars.push({ key, value, editable });
+            vars.push({key, value, editable});
         }
     });
     return vars;
@@ -339,10 +339,10 @@ function getPortMappings() {
         const container = row.querySelector('.port-container').value;
         const host = row.querySelector('.port-host').value;
         const description = row.querySelector('.port-description').value.trim();
-        if (container && host) {
-            ports.push({ 
-                container: parseInt(container), 
-                host: parseInt(host),
+        if (container) {
+            ports.push({
+                container: parseInt(container),
+                host: (host) ? parseInt(host) : null,
                 description: description || null
             });
         }
@@ -380,7 +380,7 @@ function getMapMappings() {
         const folder = row.querySelector('.map-folder').value;
         const mode = row.querySelector('.map-mode').value;
         const path = row.querySelector('.map-path').value.trim();
-        maps.push({ folder, mode, path: path || null });
+        maps.push({folder, mode, path: path || null});
     });
     return maps;
 }
@@ -400,8 +400,7 @@ async function updateVersion(type) {
         parts[2]++;
     }
 
-    const newVersion = parts.join('.');
-    document.getElementById('version').value = newVersion;
+    document.getElementById('version').value = parts.join('.');
     document.getElementById('converterForm').dispatchEvent(new Event('submit'));
 }
 
@@ -409,7 +408,7 @@ async function detectPM(force = false) {
     const image = document.getElementById('image').value.trim();
     const tag = document.getElementById('image_tag').value.trim() || 'latest';
     if (!image) return;
-    
+
     const pmInput = document.getElementById('detected_pm');
     const btn = document.getElementById('btnDetectPM');
     const loader = document.getElementById('pmLoader');
@@ -421,7 +420,7 @@ async function detectPM(force = false) {
     pmInput.value = 'detecting...';
     btn.disabled = true;
     if (loader) loader.style.display = 'inline-block';
-    
+
     try {
         const response = await fetch(`${basePath}/detect-pm?image=${encodeURIComponent(image)}&tag=${encodeURIComponent(tag)}`);
         const data = await response.json();
@@ -432,12 +431,8 @@ async function detectPM(force = false) {
         if (hint) {
             hint.innerHTML = pmSupportsBashJqCurl(pm) ? '<span class="text-success"><span class="mdi mdi-check-circle"></span> bash, jq + curl installable</span>' : '';
         }
-        
-        if (pm !== 'unknown' && pm !== 'error') {
-            btn.disabled = true;
-        } else {
-            btn.disabled = false;
-        }
+
+        btn.disabled = pm !== 'unknown' && pm !== 'error';
     } catch (e) {
         console.error('Error detecting PM', e);
         pmInput.value = 'error';
@@ -450,15 +445,15 @@ async function detectPM(force = false) {
 async function fetchImageTags() {
     const image = document.getElementById('image').value.trim();
     if (!image) return;
-    
+
     const btn = document.getElementById('btnFetchTags');
     const loader = document.getElementById('tagLoader');
     const datalist = document.getElementById('imageTagOptions');
-    
+
     btn.disabled = true;
     loader.style.display = 'inline-block';
     datalist.innerHTML = '<option value="loading...">';
-    
+
     try {
         const response = await fetch(`${basePath}/image-tags?image=${encodeURIComponent(image)}`);
         const tags = await response.json();
@@ -517,7 +512,7 @@ async function handleConverterSubmit(e) {
 
     const response = await fetch(`${basePath}/generate`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {'Content-Type': 'application/json'},
         body: JSON.stringify(data)
     });
 
@@ -532,23 +527,23 @@ async function handleConverterSubmit(e) {
         if (resultDetails) {
             resultDetails.innerHTML = `<p class="mb-0"><strong>Path:</strong> <code id="resultPath">${result.path}</code></p>`;
         }
-        
+
         if (resultDiv) {
             resultDiv.style.display = 'block';
         }
-        
+
         const converterForm = document.getElementById('converterForm');
         if (converterForm) converterForm.style.display = 'none';
-        
+
         const addonSelection = document.getElementById('addonSelection');
         if (addonSelection) addonSelection.style.display = 'none';
-        
+
         const cancelBtn = document.getElementById('cancelBtn');
         if (cancelBtn) cancelBtn.style.display = 'none';
-        
+
         // Trigger htmx reload
         document.body.dispatchEvent(new Event('reload'));
-        
+
         setTimeout(() => {
             if (resultDiv) resultDiv.style.display = 'none';
             if (addonSelection) addonSelection.style.display = 'block';
@@ -565,14 +560,14 @@ async function editAddon(slug) {
     const addonSelection = document.getElementById('addonSelection');
     const converterForm = document.getElementById('converterForm');
     const cancelBtn = document.getElementById('cancelBtn');
-    
+
     if (addonSelection) addonSelection.style.display = 'none';
     if (converterForm) converterForm.style.display = 'block';
     if (cancelBtn) cancelBtn.style.display = 'block';
 
     const nameInput = document.getElementById('name');
     if (nameInput) nameInput.value = addon.name;
-    
+
     const descInput = document.getElementById('description');
     if (descInput) descInput.value = addon.description;
 
@@ -587,7 +582,7 @@ async function editAddon(slug) {
         startupScriptEditor.setValue(addon.startup_script || '');
         setTimeout(() => startupScriptEditor.refresh(), 100);
     }
-    
+
     const iconPreview = document.getElementById('icon_preview');
     if (addon.icon_file) {
         iconBase64 = addon.icon_file;
@@ -603,10 +598,10 @@ async function editAddon(slug) {
 
     const imageInput = document.getElementById('image');
     if (imageInput) imageInput.value = addon.image;
-    
+
     const imageTagInput = document.getElementById('image_tag');
     if (imageTagInput) imageTagInput.value = addon.image_tag || 'latest';
-    
+
     const versionInput = document.getElementById('version');
     if (versionInput) {
         versionInput.value = addon.version;
@@ -621,35 +616,35 @@ async function editAddon(slug) {
 
     const ingressCheckbox = document.getElementById('ingress');
     if (ingressCheckbox) ingressCheckbox.checked = addon.ingress;
-    
+
     const ingressPortInput = document.getElementById('ingress_port');
     if (ingressPortInput) ingressPortInput.value = addon.ingress_port;
 
     const ingressEntryInput = document.getElementById('ingress_entry');
     if (ingressEntryInput) ingressEntryInput.value = addon.ingress_entry || '/';
-    
+
     const ingressStreamCheckbox = document.getElementById('ingress_stream');
     if (ingressStreamCheckbox) ingressStreamCheckbox.checked = addon.ingress_stream || false;
-    
+
     const panelIconInput = document.getElementById('panel_icon');
     if (panelIconInput) panelIconInput.value = addon.panel_icon || 'mdi:link-variant';
 
     const panelTitleInput = document.getElementById('panel_title');
     if (panelTitleInput) panelTitleInput.value = addon.panel_title || '';
-    
+
     let webuiPort = '';
     let webuiProtocol = 'http';
     let webuiPath = '/';
     if (addon.webui) {
         // Parse "scheme://[HOST]:[PORT:xxxx]/path"
-        const match = addon.webui.match(/^(\w+):\/\/\[HOST\]:\[PORT:(\d+)\](.*)$/);
+        const match = addon.webui.match(/^(\w+):\/\/\[HOST]:\[PORT:(\d+)](.*)$/);
         if (match) {
             webuiProtocol = match[1];
             webuiPort = match[2];
             webuiPath = match[3] || '/';
         } else {
             // Fallback for simple [PORT:xxxx] if it was ever used like that
-            const portMatch = addon.webui.match(/\[PORT:(\d+)\]/);
+            const portMatch = addon.webui.match(/\[PORT:(\d+)]/);
             if (portMatch) webuiPort = portMatch[1];
         }
     }
@@ -661,10 +656,10 @@ async function editAddon(slug) {
 
     const webUiPathInput = document.getElementById('web_ui_path');
     if (webUiPathInput) webUiPathInput.value = webuiPath;
-    
+
     const backupDisabled = document.getElementById('backup_disabled');
     if (backupDisabled) backupDisabled.checked = true;
-    
+
     if (addon.backup === 'hot') {
         const backupHot = document.getElementById('backup_hot');
         if (backupHot) backupHot.checked = true;
@@ -675,17 +670,13 @@ async function editAddon(slug) {
 
     const tmpfsCheckbox = document.getElementById('tmpfs');
     if (tmpfsCheckbox) tmpfsCheckbox.checked = addon.tmpfs || false;
-    
+
     const detectedPmInput = document.getElementById('detected_pm');
     if (detectedPmInput) detectedPmInput.value = addon.detected_pm || 'unknown';
-    
+
     const btnDetectPM = document.getElementById('btnDetectPM');
     if (btnDetectPM) {
-        if (addon.detected_pm && addon.detected_pm !== 'unknown' && addon.detected_pm !== 'error') {
-            btnDetectPM.disabled = true;
-        } else {
-            btnDetectPM.disabled = false;
-        }
+        btnDetectPM.disabled = addon.detected_pm && addon.detected_pm !== 'unknown' && addon.detected_pm !== 'error';
     }
     const hint = document.getElementById('pmSupportInline');
     if (hint) {
@@ -695,16 +686,16 @@ async function editAddon(slug) {
 
     const ingressOptions = document.getElementById('ingressOptions');
     if (ingressOptions) ingressOptions.style.display = addon.ingress ? 'block' : 'none';
-    
+
     const webUiPortContainer = document.getElementById('webUiPortContainer');
     if (webUiPortContainer) webUiPortContainer.style.display = addon.ingress ? 'none' : 'block';
-    
+
     const portsContainer = document.getElementById('portsContainer');
     if (portsContainer) {
         portsContainer.innerHTML = '';
         if (addon.ports && addon.ports.length > 0) {
             addon.ports.forEach(p => {
-                addPortMapping(p.container, p.host, p.description || '');
+                addPortMapping(p.container, p.host || '', p.description || '');
             });
         }
     }
@@ -737,7 +728,7 @@ async function editAddon(slug) {
 
     const quirksModeCheckbox = document.getElementById('quirks_mode');
     if (quirksModeCheckbox) quirksModeCheckbox.checked = addon.quirks || false;
-    
+
     const allowUserEnvCheckbox = document.getElementById('allow_user_env');
     if (allowUserEnvCheckbox) allowUserEnvCheckbox.checked = addon.allow_user_env || false;
 
@@ -749,7 +740,7 @@ async function editAddon(slug) {
         }
         bashioVersionInput.value = addon.bashio_version || window.bashioVersions[0] || '';
     }
-    
+
     resetAccordion();
 
     toggleEditableCheckboxes();
@@ -764,14 +755,14 @@ async function toggleAddonInfo(slug) {
         try {
             const res = await fetch(`${basePath}/addons/${slug}`);
             const a = await res.json();
-            
+
             const pm = a.detected_pm || 'unknown';
             const ingress = a.ingress ? `Enabled (${a.ingress_port}${a.ingress_stream ? ', stream' : ''})` : 'Disabled';
             const webuiPort = a.webui;
             const portsList = (a.ports || []).map(p => `${p.host}:${p.container}`).join(', ');
             const mapList = (a.map || []).join(', ');
             const envVars = (a.env_vars || []).slice(0, 5).map(e => `<code>${e.key}</code>`).join(', ');
-            const envMore = (a.env_vars || []).length > 5 ? ` … (+${(a.env_vars||[]).length - 5} weitere)` : '';
+            const envMore = (a.env_vars || []).length > 5 ? ` … (+${(a.env_vars || []).length - 5} weitere)` : '';
             const backup = a.backup ? a.backup : 'disabled';
             const quirks = a.quirks ? 'Ja' : 'Nein';
             const allowUserEnv = a.allow_user_env ? 'Ja' : 'Nein';
@@ -780,7 +771,7 @@ async function toggleAddonInfo(slug) {
                 <div class="p-3 border rounded" style="background:#fafafa">
                     <div class="row g-2">
                         <div class="col-12 col-md-6">
-                            <div><strong>Image:</strong> <code>${a.image}${a.image_tag ? ':'+a.image_tag : ''}</code></div>
+                            <div><strong>Image:</strong> <code>${a.image}${a.image_tag ? ':' + a.image_tag : ''}</code></div>
                             <div><strong>Detected PM:</strong> ${pm}</div>
                             <div><strong>Backup:</strong> ${backup}</div>
                             <div><strong>Quirks:</strong> ${quirks} (User Env: ${allowUserEnv})</div>
@@ -810,7 +801,7 @@ async function loadAddons() {
     const response = await fetch(`${basePath}/addons`);
     const data = await response.json();
     const repoInfoDiv = document.getElementById('repoInfo');
-    let addons = [];
+    let addons;
     let repoName = '';
     let repoDesc = '';
 
@@ -844,9 +835,9 @@ async function loadAddons() {
             <div class="d-flex justify-content-between align-items-center">
                 <div class="d-flex align-items-center">
                     <div class="me-3 text-center" style="width: 40px; font-size: 24px;">
-                        ${addon.has_local_icon 
-                            ? `<img src="${basePath}/addons/${addon.slug}/icon.png" style="width: 32px; height: 32px;">` 
-                            : '📦'} 
+                        ${addon.has_local_icon
+            ? `<img src="${basePath}/addons/${addon.slug}/icon.png" style="width: 32px; height: 32px;" alt="${addon.slug}">`
+            : '📦'} 
                     </div>
                     <div>
                         <strong>${addon.name}</strong>
@@ -858,9 +849,9 @@ async function loadAddons() {
                         <small class="text-muted">Version: ${addon.version} | Image: <code>${addon.image}</code></small>
                     </div>
                 </div>
-                ${isSelf ? 
-                    '<span class="badge bg-secondary rounded-pill">System</span>' : 
-                    `<div class="text-nowrap">
+                ${isSelf ?
+            '<span class="badge bg-secondary rounded-pill">System</span>' :
+            `<div class="text-nowrap">
                         <button type="button" class="btn btn-sm btn-ha-outline rounded-pill me-1" title="Info" onclick="toggleAddonInfo('${addon.slug}')">
                             <span class="mdi mdi-information-outline"></span>
                         </button>
@@ -871,11 +862,12 @@ async function loadAddons() {
                             <span class="mdi mdi-delete"></span>
                         </button>
                     </div>`
-                }
+        }
             </div>
             <div id="addon-info-${addon.slug}" class="collapse mt-3"></div>
         </div>
-    `}).join('');
+    `
+    }).join('');
 }
 
 // Initial load removed - handled by HTMX in templates/index.php
@@ -890,7 +882,7 @@ async function openSettings() {
     document.getElementById('converterForm').style.display = 'none';
     document.getElementById('settingsView').style.display = 'block';
     document.getElementById('cancelBtn').style.display = 'none';
-    
+
     const response = await fetch(`${basePath}/settings`);
     const settings = await response.json();
     document.getElementById('repo_name').value = settings.name;
@@ -914,7 +906,7 @@ async function handleSettingsSubmit(e) {
     };
     const response = await fetch(`${basePath}/settings`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {'Content-Type': 'application/json'},
         body: JSON.stringify(data)
     });
     const result = await response.json();
@@ -932,11 +924,11 @@ async function selfConvert(tag = 'latest') {
         try {
             const response = await fetch(`${basePath}/self-convert`, {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ tag: tag })
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({tag: tag})
             });
             const result = await response.json();
-            
+
             if (result.status === 'success') {
                 alert('Add-on successfully created in: ' + result.path);
                 document.body.dispatchEvent(new Event('reload'));
@@ -949,20 +941,20 @@ async function selfConvert(tag = 'latest') {
     }, 'Export Converter', 'Export');
 }
 
-async function loadTags(btn) {
+async function loadTags() {
     const list = document.getElementById('tagList');
     if (list.dataset.loaded === 'true') return;
-    
+
     try {
         const response = await fetch(`${basePath}/tags`);
         const tags = await response.json();
-        
+
         const header = list.querySelector('.dropdown-header');
         const divider = list.querySelector('.dropdown-divider');
         list.innerHTML = '';
         list.appendChild(header.parentElement === list ? header : header.closest('li'));
         list.appendChild(divider.parentElement === list ? divider : divider.closest('li'));
-        
+
         tags.forEach(tag => {
             const li = document.createElement('li');
             li.innerHTML = `<a class="dropdown-item" href="#" onclick="selfConvert('${tag}')">${tag}</a>`;
@@ -978,10 +970,10 @@ function toggleEditableCheckboxes() {
     const quirksMode = document.getElementById('quirks_mode');
     const allowUserEnv = document.getElementById('allow_user_env');
     if (!quirksMode) return;
-    
+
     const quirksEnabled = quirksMode.checked;
     const allowUserEnvEnabled = allowUserEnv ? allowUserEnv.checked : false;
-    
+
     const startupScriptSection = document.getElementById('startupScriptSection');
     if (startupScriptSection) {
         // Sektion anzeigen wenn Quirks ODER Allow User Env aktiv ist
@@ -990,7 +982,7 @@ function toggleEditableCheckboxes() {
             setTimeout(() => startupScriptEditor.refresh(), 100);
         }
     }
-    
+
     document.querySelectorAll('.env-editable').forEach(cb => {
         cb.disabled = !quirksEnabled;
         if (!quirksEnabled) cb.checked = false;

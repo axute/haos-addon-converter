@@ -2,63 +2,28 @@
 
 namespace App\Controllers;
 
-use App\Generator\AddonFiles;
+use App\Addon\{FilesReader, FilesWriter};
+use App\Generator\{Dockerfile, HaRepository};
+use App\Tools\{Bashio, Converter, Crane, Remover, Scripts};
 use Exception;
-use Psr\Http\Message\ResponseInterface as Response;
-use Psr\Http\Message\ServerRequestInterface as Request;
-use Symfony\Component\Yaml\Yaml;
+use Psr\Http\Message\{ResponseInterface as Response, ServerRequestInterface as Request};
 
-class AddonController
+class AddonController extends ControllerAbstract
 {
     public function list(Request $request, Response $response): Response
     {
-        $dataDir = $this->getDataDir();
+        $dataDir = FilesReader::getDataDir();
         $addons = [];
 
         if (is_dir($dataDir)) {
             $dirs = array_filter(glob($dataDir . '/*'), 'is_dir');
             foreach ($dirs as $dir) {
                 $slug = basename($dir);
-                $configFile = $dir . '/config.yaml';
-                if (file_exists($configFile)) {
-                    $config = Yaml::parseFile($configFile);
-                    $hasLocalIcon = file_exists($dir . '/icon.png');
-
-                    $image = '';
-                    $dockerfile = $dir . '/Dockerfile';
-                    if (file_exists($dockerfile)) {
-                        $content = file_get_contents($dockerfile);
-                        if (preg_match('/^FROM\s+(.+)$/m', $content, $matches)) {
-                            $image = trim($matches[1]);
-                        }
-                    }
-
-                    $metadataFile = $dir . '/metadata.json';
-                    $detectedPm = $config['init_pm'] ?? null;
-                    $quirks = false;
-                    if (file_exists($metadataFile)) {
-                        $metadata = json_decode(file_get_contents($metadataFile), true);
-                        if (isset($metadata['detected_pm'])) {
-                            $detectedPm = $metadata['detected_pm'];
-                        }
-                        if (isset($metadata['quirks'])) {
-                            $quirks = (bool)$metadata['quirks'];
-                        }
-                    }
-                    if (!$quirks) {
-                        $quirks = file_exists($dir . '/run.sh');
-                    }
-
-                    $addons[] = [
-                        'slug'           => $slug,
-                        'name'           => $config['name'] ?? $slug,
-                        'version'        => $config['version'] ?? 'unknown',
-                        'description'    => $config['description'] ?? '',
-                        'image'          => $image ?: ($config['image'] ?? ''),
-                        'detected_pm'    => $detectedPm,
-                        'quirks'         => $quirks,
-                        'has_local_icon' => $hasLocalIcon
-                    ];
+                try {
+                    $reader = new FilesReader($slug);
+                    $addons[] = $reader->jsonSerialize();
+                } catch (Exception) {
+                    continue;
                 }
             }
         }
@@ -68,263 +33,21 @@ class AddonController
             return strcasecmp($a['name'], $b['name']);
         });
 
-        $repository = null;
-        $repoFile = $dataDir . '/repository.yaml';
-        if (file_exists($repoFile)) {
-            $repoConfig = Yaml::parseFile($repoFile);
-            $repository = [
-                'name'        => $repoConfig['name'] ?? 'Unknown Repository',
-                'description' => $repoConfig['description'] ?? ''
-            ];
-        }
-
-        $response->getBody()->write(json_encode([
+        $repository = HaRepository::getInstance()?->jsonSerialize();
+        return $this->success($response, [
             'addons'     => $addons,
             'repository' => $repository
-        ]));
-        return $response->withHeader('Content-Type', 'application/json');
-    }
-
-    private function getDataDir(): string
-    {
-        return getenv('CONVERTER_DATA_DIR') ?: __DIR__ . '/../../data';
+        ]);
     }
 
     public function get(Request $request, Response $response, array $args): Response
     {
-        $slug = $args['slug'];
-        $dataDir = $this->getDataDir();
-        $configFile = $dataDir . '/' . $slug . '/config.yaml';
-
-        if (!file_exists($configFile)) {
-            $response->getBody()->write(json_encode([
-                'status'  => 'error',
-                'message' => 'Add-on not found'
-            ]));
-            return $response->withHeader('Content-Type', 'application/json')->withStatus(404);
-        }
-
-        $config = Yaml::parseFile($configFile);
-
-        $longDescription = '';
-        $readmeFile = $dataDir . '/' . $slug . '/README.md';
-        if (file_exists($readmeFile)) {
-            $longDescription = file_get_contents($readmeFile);
-            // Logo-Tag entfernen, falls vorhanden, damit es im Editor nicht doppelt erscheint
-            // und beim Speichern nicht erneut hinzugefügt wird
-            $longDescription = str_replace("![Logo](icon.png)\n\n", "", $longDescription);
-        }
-
-        $hasLocalIcon = file_exists($dataDir . '/' . $slug . '/icon.png');
-        $iconFileContent = '';
-        if ($hasLocalIcon) {
-            $type = pathinfo($dataDir . '/' . $slug . '/icon.png', PATHINFO_EXTENSION);
-            $data = file_get_contents($dataDir . '/' . $slug . '/icon.png');
-            $iconFileContent = 'data:image/' . $type . ';base64,' . base64_encode($data);
-        }
-
-        $image = '';
-        $image_tag = '';
-        $dockerfile = $dataDir . '/' . $slug . '/Dockerfile';
-        if (file_exists($dockerfile)) {
-            $content = file_get_contents($dockerfile);
-            if (preg_match('/^FROM\s+(.+)$/m', $content, $matches)) {
-                $fullImage = trim($matches[1]);
-                if (strpos($fullImage, ':') !== false) {
-                    list($image, $image_tag) = explode(':', $fullImage, 2);
-                } else {
-                    $image = $fullImage;
-                    $image_tag = 'latest';
-                }
-            }
-        }
-
-        $envVars = [];
-        // Fixierte Variablen aus 'environment'
-        if (isset($config['environment']) && is_array($config['environment'])) {
-            foreach ($config['environment'] as $key => $value) {
-                // HAOS_CONVERTER_* sind systemgenerierte Variablen und sollen nicht gelistet werden.
-                if (str_starts_with($key, 'HAOS_CONVERTER_')) {
-                    continue;
-                }
-                $envVars[] = [
-                    'key'      => $key,
-                    'value'    => $value,
-                    'editable' => false
-                ];
-            }
-        }
-        // Editierbare Variablen aus 'options'/'schema'
-        if (isset($config['options']) && is_array($config['options'])) {
-            foreach ($config['options'] as $key => $value) {
-                // 'env_vars' ist ein spezielles Feld für die Checkbox "Allow user to create environment variables"
-                // HAOS_CONVERTER_* sind systemgenerierte Variablen.
-                // Beides soll nicht als normale Umgebungsvariable gelistet werden.
-                if ($key === 'env_vars' || str_starts_with($key, 'HAOS_CONVERTER_')) {
-                    continue;
-                }
-                // Nur hinzufügen, wenn noch nicht als fixierte Variable vorhanden (sollte eigentlich nicht passieren)
-                $exists = false;
-                foreach ($envVars as $ev) {
-                    if ($ev['key'] === $key) {
-                        $exists = true;
-                        break;
-                    }
-                }
-                if (!$exists) {
-                    $envVars[] = [
-                        'key'      => $key,
-                        'value'    => $value,
-                        'editable' => true
-                    ];
-                }
-            }
-        }
-
-        $ports = [];
-        if (isset($config['ports']) && is_array($config['ports'])) {
-            $portsDescriptions = $config['ports_description'] ?? [];
-
-            foreach ($config['ports'] as $containerPort => $hostPort) {
-                // Wir nehmen an, dass es immer /tcp ist oder schneiden es einfach ab
-                $containerStr = (string)$containerPort;
-                $container = (int)str_replace('/tcp', '', $containerStr);
-
-                $description = null;
-                // Suche nach der Beschreibung in ports_description
-                // Das Format in config.yaml ist ports_description: [{ "80/tcp": "Description" }]
-                foreach ($portsDescriptions as $pd) {
-                    if (is_array($pd) && isset($pd[$containerStr])) {
-                        $description = $pd[$containerStr];
-                        break;
-                    }
-                }
-
-                $ports[] = [
-                    'container'   => $container,
-                    'host'        => (int)$hostPort,
-                    'description' => $description
-                ];
-            }
-        }
-
-        // Versuchen wir auch den Ingress Port zu finden, falls er nicht in der config steht (obwohl er dort stehen sollte)
-        $metadataFile = $dataDir . '/' . $slug . '/metadata.json';
-        $detectedPm = $config['init_pm'] ?? '';
-        if (file_exists($metadataFile)) {
-            $metadata = json_decode(file_get_contents($metadataFile), true);
-            if (isset($metadata['detected_pm'])) {
-                $detectedPm = $metadata['detected_pm'];
-            }
-        }
-
-        // Quirks erkennen (aus metadata.json oder anhand run.sh)
-        $quirks = false;
-        $allowUserEnv = false;
-        $bashioVersion = '';
-        if (file_exists($metadataFile)) {
-            $metadata = json_decode(file_get_contents($metadataFile), true) ?: [];
-            if (isset($metadata['quirks'])) {
-                $quirks = (bool)$metadata['quirks'];
-            }
-            if (isset($metadata['allow_user_env'])) {
-                $allowUserEnv = (bool)$metadata['allow_user_env'];
-            }
-            if (isset($metadata['tmpfs'])) {
-                $tmpfs = (bool)$metadata['tmpfs'];
-            }
-            if (isset($metadata['bashio_version'])) {
-                $bashioVersion = $metadata['bashio_version'];
-            }
-        }
-        if (!$quirks) {
-            $quirks = file_exists($dataDir . '/' . $slug . '/run.sh');
-        }
-
-        $startupScript = '';
-        if (file_exists($dataDir . '/' . $slug . '/start.sh')) {
-            $startupScript = file_get_contents($dataDir . '/' . $slug . '/start.sh');
-        }
-
-        $data = [
-            'name'             => $config['name'] ?? '',
-            'description'      => $config['description'] ?? '',
-            'url'              => $config['url'] ?? null,
-            'long_description' => $longDescription,
-            'image'            => $image ?: ($config['image'] ?? ''),
-            'image_tag'        => $image_tag,
-            'version'          => $config['version'] ?? '',
-            'ingress'          => $config['ingress'] ?? false,
-            'ingress_port'     => $config['ingress_port'] ?? 80,
-            'ingress_entry'    => $config['ingress_entry'] ?? '/',
-            'ingress_stream'   => $config['ingress_stream'] ?? false,
-            'panel_icon'       => $config['panel_icon'] ?? 'mdi:link-variant',
-            'panel_title'      => $config['panel_title'] ?? null,
-            'webui'            => $config['webui'] ?? '',
-            'backup'           => $config['backup'] ?? 'disabled',
-            'tmpfs'            => $tmpfs ?? (bool)($config['tmpfs'] ?? false),
-            'detected_pm'      => $detectedPm,
-            'has_local_icon'   => $hasLocalIcon,
-            'icon_file'        => $iconFileContent,
-            'ports'            => $ports,
-            'map'              => $config['map'] ?? [],
-            'env_vars'         => $envVars,
-            'quirks'           => $quirks,
-            'allow_user_env'   => $allowUserEnv,
-            'bashio_version'   => $bashioVersion,
-            'startup_script'   => $startupScript
-        ];
-
-        $response->getBody()->write(json_encode($data));
-        return $response->withHeader('Content-Type', 'application/json');
-    }
-
-    public function getTags(Request $request, Response $response): Response
-    {
-        $imageName = 'axute/haos-addon-converter';
-        $tags = ['latest'];
-
         try {
-            $tokenUrl = "https://ghcr.io/token?scope=repository:$imageName:pull&service=ghcr.io";
-            $tokenJson = @file_get_contents($tokenUrl);
-            if ($tokenJson) {
-                $tokenData = json_decode($tokenJson, true);
-                $token = $tokenData['token'] ?? '';
-
-                if ($token) {
-                    $tagsUrl = "https://ghcr.io/v2/$imageName/tags/list";
-                    $opts = [
-                        'http' => [
-                            'method' => 'GET',
-                            'header' => "Authorization: Bearer $token\r\n"
-                        ]
-                    ];
-                    $context = stream_context_create($opts);
-                    $tagsJson = @file_get_contents($tagsUrl, false, $context);
-                    if ($tagsJson) {
-                        $tagsData = json_decode($tagsJson, true);
-                        if (isset($tagsData['tags']) && is_array($tagsData['tags'])) {
-                            $tags = $tagsData['tags'];
-                            // Sort tags, latest should be first or handled specially
-                            rsort($tags);
-                            // Ensure 'latest' is in there if not present (though it should be)
-                            if (!in_array('latest', $tags)) {
-                                array_unshift($tags, 'latest');
-                            } else {
-                                // Move latest to the front
-                                $tags = array_diff($tags, ['latest']);
-                                array_unshift($tags, 'latest');
-                            }
-                        }
-                    }
-                }
-            }
+            $reader = new FilesReader($args['slug']);
+            return $this->success($response, $reader->jsonSerialize());
         } catch (Exception $e) {
-            // Fallback to ['latest']
+            return $this->errorMessage($response, $e->getMessage());
         }
-
-        $response->getBody()->write(json_encode($tags));
-        return $response->withHeader('Content-Type', 'application/json');
     }
 
     public function getImageTags(Request $request, Response $response): Response
@@ -333,21 +56,12 @@ class AddonController
         $image = $queryParams['image'] ?? '';
 
         if (empty($image)) {
-            $response->getBody()->write(json_encode([]));
-            return $response->withHeader('Content-Type', 'application/json');
+            return $this->success($response);
         }
-
-        // crane ls verwenden
-        $command = "crane ls " . escapeshellarg($image) . " 2>&1";
-        $output = shell_exec($command);
-        $tags = explode("\n", trim($output));
-        $tags = array_filter($tags, function ($tag) {
-            return !empty($tag) && strpos($tag, "error") === false && strpos($tag, "standard_init_linux") === false;
-        });
+        $tags = Crane::getTags($image);
 
         if (empty($tags)) {
-            $response->getBody()->write(json_encode(['latest']));
-            return $response->withHeader('Content-Type', 'application/json');
+            return $this->success($response, ['latest']);
         }
 
         // Tags nach Version sortieren (neueste oben)
@@ -364,16 +78,19 @@ class AddonController
             }
 
             // Fallback: SHA-Tags ans Ende sortieren
-            $a_is_sha = (strpos($a, 'sha256-') === 0);
-            $b_is_sha = (strpos($b, 'sha256-') === 0);
+            $a_is_sha = (str_starts_with($a, 'sha256-'));
+            $b_is_sha = (str_starts_with($b, 'sha256-'));
             if ($a_is_sha && !$b_is_sha) return 1;
             if (!$a_is_sha && $b_is_sha) return -1;
 
             return strcasecmp($b, $a);
         });
+        return $this->success($response, array_values($tags));
+    }
 
-        $response->getBody()->write(json_encode(array_values($tags)));
-        return $response->withHeader('Content-Type', 'application/json');
+    public function getTags(Request $request, Response $response): Response
+    {
+        return $this->success($response, Converter::getTags());
     }
 
     public function detectPackageManager(Request $request, Response $response): Response
@@ -383,50 +100,24 @@ class AddonController
         $tag = $queryParams['tag'] ?? 'latest';
 
         if (empty($image)) {
-            $response->getBody()->write(json_encode(['pm' => 'unknown']));
-            return $response->withHeader('Content-Type', 'application/json');
+            return $this->success($response, ['pm' => 'unknown']);
         }
 
         $fullImage = $image . ($tag ? ':' . $tag : '');
-
-        // Caching
-        $cacheDir = $this->getDataDir() . '/.cache';
-        if (!is_dir($cacheDir)) {
-            mkdir($cacheDir, 0777, true);
-        }
-        $cacheFile = $cacheDir . '/pm_cache.json';
-        $cache = [];
-        if (file_exists($cacheFile)) {
-            $cache = json_decode(file_get_contents($cacheFile), true) ?: [];
-        }
+        $cache = Scripts::getDetectPMCache();
 
         if (isset($cache[$fullImage])) {
-            $response->getBody()->write(json_encode([
+            return $this->success($response, [
                 'pm'     => $cache[$fullImage],
                 'cached' => true
-            ]));
-            return $response->withHeader('Content-Type', 'application/json');
-        }
-
-        $helperScript = __DIR__ . '/../../helper/detect_pm.sh';
-
-        // Da wir auf Windows sind, müssen wir detect_pm.sh eventuell mit bash ausführen
-        // oder wir portieren die Logik. Da das Skript bash-spezifisch ist (grep, jq, crane ls --recursive),
-        // versuchen wir es mit bash (falls vorhanden, z.B. von Git Bash).
-
-        $command = "bash " . escapeshellarg($helperScript) . " " . escapeshellarg($fullImage) . " 2>&1";
-        $pm = trim(shell_exec($command));
-
-        if (empty($pm)) {
-            $pm = 'unknown';
+            ]);
         }
 
         // Cache speichern
+        $pm = Scripts::detectPM($fullImage);
         $cache[$fullImage] = $pm;
-        file_put_contents($cacheFile, json_encode($cache, JSON_PRETTY_PRINT));
-
-        $response->getBody()->write(json_encode(['pm' => $pm]));
-        return $response->withHeader('Content-Type', 'application/json');
+        Scripts::setDetectPmCache($cache);
+        return $this->success($response, ['pm' => $pm]);
     }
 
     public function selfConvert(Request $request, Response $response): Response
@@ -435,121 +126,18 @@ class AddonController
         $params = json_decode($body, true);
         $tag = $params['tag'] ?? 'latest';
 
-        $slug = 'haos_addon_converter';
-        $configFile = $this->getDataDir() . '/' . $slug . '/config.yaml';
-        $currentVersion = '1.0.0';
-
-        if (file_exists($configFile)) {
-            $config = Yaml::parseFile($configFile);
-            $currentVersion = $config['version'] ?? '1.0.0';
-        }
-
-        // Version hochzählen
-        $parts = explode('.', $currentVersion);
-        if (count($parts) === 3) {
-            $parts[2]++;
-            $newVersion = implode('.', $parts);
-        } else {
-            $newVersion = $currentVersion . '.1';
-        }
-
-        // Daten für die Generierung vorbereiten
-        $data = [
-            'name'           => 'HAOS Add-on Converter',
-            'image'          => "ghcr.io/axute/haos-addon-converter:$tag",
-            'description'    => 'Web-Converter zum Konvertieren von Docker-Images in Home Assistant Add-ons.',
-            'version'        => $newVersion,
-            'url'            => 'https://github.com/axute/haos-addon-converter',
-            'ingress'        => true,
-            'ingress_port'   => 80,
-            'ingress_entry'  => '/',
-            'ingress_stream' => false,
-            'panel_icon'     => 'mdi:toy-brick',
-            'panel_title'    => 'Addon Converter',
-            'backup'         => 'hot',
-            'self_convert'   => true,
-            'map'            => [
-                [
-                    'folder' => 'addons',
-                    'mode'   => 'rw'
-                ]
-            ],
-            'env_vars'       => [
-                [
-                    'key'   => 'CONVERTER_DATA_DIR',
-                    'value' => '/addons'
-                ]
-            ]
-        ];
-
-        // Icon hinzufügen falls vorhanden
-        $iconPath = __DIR__ . '/../../icon.png';
-        if (file_exists($iconPath)) {
-            $iconData = file_get_contents($iconPath);
-            $data['icon_file'] = 'data:image/png;base64,' . base64_encode($iconData);
-        }
-
         try {
-            $addonFiles = new AddonFiles($data);
+            $addonFiles = new FilesWriter(Converter::selfConvert($tag));
             $result = $addonFiles->create();
-            $response->getBody()->write(json_encode($result));
-            return $response->withHeader('Content-Type', 'application/json');
+            return $this->success($response, $result);
         } catch (Exception $exception) {
-            $response->getBody()->write(json_encode([
-                'status'  => 'error',
-                'message' => $exception->getMessage()
-            ]));
-            return $response->withHeader('Content-Type', 'application/json')->withStatus(400);
-
+            return $this->errorMessage($response, $exception->getMessage());
         }
     }
 
     public function getBashioVersions(Request $request, Response $response): Response
     {
-        $cacheFile = $this->getDataDir() . '/.cache/bashio_versions.json';
-        $versions = [];
-
-        if (file_exists($cacheFile) && (time() - filemtime($cacheFile) < 86400)) {
-            $versions = json_decode(file_get_contents($cacheFile), true);
-        }
-
-        if (empty($versions)) {
-            try {
-                $opts = [
-                    'http' => [
-                        'method' => 'GET',
-                        'header' => "User-Agent: PHP\r\n"
-                    ]
-                ];
-                $context = stream_context_create($opts);
-                $json = @file_get_contents('https://api.github.com/repos/hassio-addons/bashio/releases', false, $context);
-                if ($json) {
-                    $data = json_decode($json, true);
-                    foreach ($data as $release) {
-                        $tag = $release['tag_name'];
-                        // v entfernen falls vorhanden
-                        $versions[] = ltrim($tag, 'v');
-                    }
-
-                    if (!is_dir(dirname($cacheFile))) {
-                        mkdir(dirname($cacheFile), 0777, true);
-                    }
-                    file_put_contents($cacheFile, json_encode($versions));
-                }
-            } catch (Exception $e) {
-                // Fallback
-            }
-        }
-
-        if (empty($versions)) {
-            $versions = [
-                '0.16.3',
-                '0.14.3'
-            ]; // Minimaler Fallback
-        }
-
-        $response->getBody()->write(json_encode($versions));
-        return $response->withHeader('Content-Type', 'application/json');
+        return $this->success($response, Bashio::getVersions());
     }
 
     public function delete(Request $request, Response $response, array $args): Response
@@ -558,79 +146,31 @@ class AddonController
 
         // System addon cannot be deleted
         if ($slug === 'haos_addon_converter') {
-            $response->getBody()->write(json_encode([
-                'status'  => 'error',
-                'message' => 'System add-on cannot be deleted'
-            ]));
-            return $response->withHeader('Content-Type', 'application/json')->withStatus(403);
+            return $this->errorMessage($response, 'System add-on cannot be deleted', 403);
         }
-
-        $addonDir = $this->getDataDir() . '/' . $slug;
-
-        if (!is_dir($addonDir)) {
-            $response->getBody()->write(json_encode([
-                'status'  => 'error',
-                'message' => 'Add-on not found'
-            ]));
-            return $response->withHeader('Content-Type', 'application/json')->withStatus(404);
-        }
-
-        // Verzeichnis rekursiv löschen
-        $this->recursiveRmdir($addonDir);
-
-        $response->getBody()->write(json_encode(['status' => 'success']));
-        return $response->withHeader('Content-Type', 'application/json');
-    }
-
-    private function recursiveRmdir($dir): void
-    {
-        if (is_dir($dir)) {
-            $objects = scandir($dir);
-            foreach ($objects as $object) {
-                if ($object != "." && $object != "..") {
-                    if (is_dir($dir . DIRECTORY_SEPARATOR . $object) && !is_link($dir . "/" . $object)) {
-                        $this->recursiveRmdir($dir . DIRECTORY_SEPARATOR . $object);
-                    } else {
-                        unlink($dir . DIRECTORY_SEPARATOR . $object);
-                    }
-                }
-            }
-            rmdir($dir);
+        try {
+            Remover::removeAddon($slug);
+            return $this->success($response, ['status' => 'success']);
+        } catch (Exception $e) {
+            return $this->errorMessage($response, $e->getMessage());
         }
     }
+
 
     public function checkImageUpdate(Request $request, Response $response, array $args): Response
     {
         $slug = $args['slug'];
-        $dataDir = $this->getDataDir();
-        $dockerfile = $dataDir . '/' . $slug . '/Dockerfile';
-
-        if (!file_exists($dockerfile)) {
-            $response->getBody()->write(json_encode([
-                'status'  => 'error',
-                'message' => 'Dockerfile not found'
-            ]));
-            return $response->withHeader('Content-Type', 'application/json');
-        }
-
-        $content = file_get_contents($dockerfile);
-        $image = '';
-        $tag = 'latest';
-        if (preg_match('/^FROM\s+(.+)$/m', $content, $matches)) {
-            $fullImageMatch = trim($matches[1]);
-            if (str_contains($fullImageMatch, ':')) {
-                list($image, $tag) = explode(':', $fullImageMatch, 2);
-            } else {
-                $image = $fullImageMatch;
-            }
+        $dataDir = FilesReader::getDataDir();
+        try {
+            $addon = new FilesReader($slug);
+            $image = $addon->getImage();
+            $tag = $addon->getImageTag();
+        } catch (Exception $e) {
+            return $this->errorMessage($response, $e->getMessage());
         }
 
         if (empty($image)) {
-            $response->getBody()->write(json_encode([
-                'status'  => 'error',
-                'message' => 'Could not detect image in Dockerfile'
-            ]));
-            return $response->withHeader('Content-Type', 'application/json');
+            return $this->errorMessage($response, 'Could not detect image in Dockerfile', 200);
         }
 
         $fullImage = $image . ':' . $tag;
@@ -639,8 +179,7 @@ class AddonController
 
         // Cache für 6 Stunden (außer force=1)
         if (!$force && file_exists($cacheFile) && (time() - filemtime($cacheFile) < 21600)) {
-            $response->getBody()->write(file_get_contents($cacheFile));
-            return $response->withHeader('Content-Type', 'application/json');
+            return $this->success($response, json_decode(file_get_contents($cacheFile), true));
         }
 
         $result = [
@@ -650,48 +189,12 @@ class AddonController
             'image'       => $fullImage,
             'current_tag' => $tag
         ];
-
-        // 1. Alle Tags abrufen, um nach neueren Versionen mit gleicher Major/Minor zu suchen
-        $command = "crane ls " . escapeshellarg($image) . " 2>&1";
-        $output = shell_exec($command);
-        $allTags = explode("\n", trim($output));
-        $allTags = array_filter($allTags, function ($t) {
-            return !empty($t) && !str_contains($t, "error");
-        });
-        $result['fix'] = null;
-        $result['minor'] = null;
-        $result['major'] = null;
-        if (!empty($allTags)) {
-            // Wenn der aktuelle Tag eine Version ist (z.B. 1.2.3)
-            if (preg_match('/^v?(\d+)\.(\d+)(\.\d+)?(-.+)?$/', $tag, $currentMatches)) {
-                $major = $currentMatches[1];
-                $minor = $currentMatches[2];
-
-                foreach ($allTags as $t) {
-                    if (preg_match('/^v?(\d+)\.(\d+)(\.\d+)?(-.+)?$/', $t, $tMatches)) {
-                        if ($tMatches[1] == $major && $tMatches[2] == $minor) {
-                            if (version_compare($t, $tag, '>')) {
-                                $result['fix'] = $t;
-                            }
-                        } else if ($tMatches[1] == $major) {
-                            if (version_compare($t, $tag, '>')) {
-                                $result['minor'] = $t;
-                            }
-                        } else if ($tMatches[1] > $major) {
-                            $result['major'] = $t;
-                        }
-                    }
-                }
-            }
-        }
-
-
+        $updates = Crane::getUpdateDetailed($image, $tag);
+        $result = array_merge($result, $updates);
         if (!is_dir(dirname($cacheFile))) {
             mkdir(dirname($cacheFile), 0777, true);
         }
         file_put_contents($cacheFile, json_encode($result));
-
-        $response->getBody()->write(json_encode($result));
-        return $response->withHeader('Content-Type', 'application/json');
+        return $this->success($response, $result);
     }
 }

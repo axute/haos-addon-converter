@@ -4,7 +4,7 @@ namespace App\Generator;
 
 use Symfony\Component\Yaml\Yaml;
 
-class HArepository extends Yamlfile
+class HaRepository extends Yamlfile
 {
     public const string FILENAME = 'repository.yaml';
     protected ?string $maintainer = null;
@@ -70,7 +70,7 @@ class HArepository extends Yamlfile
         return $this;
     }
 
-    public function setName(string $name): HArepository
+    public function setName(string $name): HaRepository
     {
         $this->name = $name;
         return $this;
