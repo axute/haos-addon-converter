@@ -113,6 +113,7 @@ class FilesWriter extends FilesAbstract
         $newMetadata->add('has_startup_script', !empty($this->data['startup_script'] ?? ''));
         $newMetadata->add('original_entrypoint', $origEntrypoint);
         $newMetadata->add('original_cmd', $origCmd);
+        $newMetadata->add('architectures', Crane::getArchitectures($this->image));
         $metadataFile = $this->addonPath . '/' . Metadata::FILENAME;
         $oldMetadata = [];
         if (file_exists($metadataFile)) {
@@ -126,8 +127,13 @@ class FilesWriter extends FilesAbstract
 
     protected function generateConfigYaml(): static
     {
+        $architectures = Crane::getArchitectures($this->image);
         $haConfig = new HaConfig(
-            $this->data['name'], $this->data['version'] ?? '1.0.0', $this->slug, $this->data['description'] ?? 'Converted HA Add-on',
+            $this->data['name'],
+            $this->data['version'] ?? '1.0.0',
+            $this->slug,
+            $this->data['description'] ?? 'Converted HA Add-on',
+            $architectures
         );
         $haConfig->setUrl($this->data['url'] ?? null);
         $haConfig->addEnvironment('HAOS_CONVERTER_BASHIO_VERSION', $this->data['bashio_version'] ?? '0.17.5');

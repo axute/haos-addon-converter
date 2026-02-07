@@ -253,7 +253,7 @@ async function deleteAddon(slug) {
                 if (typeof htmx !== 'undefined') {
                     document.body.dispatchEvent(new Event('reload'));
                 } else {
-                    loadAddons();
+                    await loadAddons();
                 }
             } else {
                 alert('Error during deletion: ' + result.message);

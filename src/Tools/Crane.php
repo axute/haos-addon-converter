@@ -7,17 +7,6 @@ use RuntimeException;
 
 class Crane
 {
-    public static function getConfig(string $image)
-    {
-        $command = "crane config " . escapeshellarg($image) . " 2>&1";
-        $output = shell_exec($command);
-        $data = json_decode($output, true);
-        if (json_last_error() !== JSON_ERROR_NONE) {
-            throw new RuntimeException(json_last_error_msg());
-        }
-        return $data;
-    }
-
     public static function getUpdateDetailed(string $image, string $tag): array
     {
         // 1. Alle Tags abrufen, um nach neueren Versionen mit gleicher Major/Minor zu suchen
@@ -92,15 +81,12 @@ class Crane
     public static function getArchitectures(string $fullImage): array
     {
         $command = "crane manifest " . escapeshellarg($fullImage) . " 2>&1";
-        $output = shell_exec($command);
-        $data = json_decode($output, true);
+        $output = @shell_exec($command);
+        $data = @json_decode($output, true);
         $allowedArchitectures = HaConfig::ARCHITECTURES;
-        if (json_last_error() !== JSON_ERROR_NONE) {
-            throw new RuntimeException(json_last_error_msg());
-        }
-        if (array_key_exists('manifest', $data)) {
+        if (is_array($data) && array_key_exists('manifests', $data)) {
             $foundArchitectures = [];
-            foreach ($data['manifest'] as $manifest) {
+            foreach ($data['manifests'] as $manifest) {
                 $architecture = $manifest['platform']['architecture'] ?? null;
                 $os = $manifest['platform']['os'] ?? null;
                 $variant = $manifest['platform']['variant'] ?? null;
@@ -113,11 +99,43 @@ class Crane
                     $foundArchitectures[] = $architecture . $variant;
                 }
             }
-            return $foundArchitectures;
+            if (count($foundArchitectures)) {
+                return self::reworkArchitectures($foundArchitectures);
+            }
         }
-        if (array_key_exists('architecture', $data) && in_array($data['architecture'], $allowedArchitectures)) {
-            return [$data['architecture']];
+
+        try {
+            $data = self::getConfig($fullImage);
+            if (array_key_exists('architecture', $data) && in_array($data['architecture'], $allowedArchitectures)) {
+                return self::reworkArchitectures([$data['architecture']]);
+            }
+            return [];
+        } catch (RuntimeException) {
+            return [];
         }
-        return [];
+    }
+
+    protected static function reworkArchitectures(array $architectures): array
+    {
+        if (in_array('arm64', $architectures, true)) {
+            if (in_array('aarch64', $architectures, true) === false) {
+                $architectures[] = 'aarch64';
+            }
+            $key = array_search('arm64', $architectures, true);
+            unset($architectures[$key]);
+            return array_values($architectures);
+        }
+        return $architectures;
+    }
+
+    public static function getConfig(string $image)
+    {
+        $command = "crane config " . escapeshellarg($image) . " 2>&1";
+        $output = shell_exec($command);
+        $data = json_decode($output, true);
+        if (json_last_error() !== JSON_ERROR_NONE) {
+            throw new RuntimeException(json_last_error_msg());
+        }
+        return $data;
     }
 }

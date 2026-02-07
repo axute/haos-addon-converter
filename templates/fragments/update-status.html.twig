@@ -40,6 +40,16 @@
         {% endif %}
     {% endif %}
 
+    {% if update.architectures is not empty %}
+        <span class="ms-1" style="font-size: 0.7rem;">
+            {% for arch in update.architectures %}
+                <span class="badge {{ arch.lts ? 'bg-success' : 'bg-danger' }} rounded-pill" style="opacity: 0.8;" title="{{ arch.lts ? 'Longterm Support' : 'No Longterm Support' }}">
+                    {{ arch.name }}
+                </span>
+            {% endfor %}
+        </span>
+    {% endif %}
+
     <span class="ms-1 text-muted htmx-indicator-container" style="cursor: pointer; font-size: 0.8rem;" 
           title="Update-Check manuell triggern"
           hx-get="{{ basePath }}/fragments/check-update/{{ slug }}?force=1"

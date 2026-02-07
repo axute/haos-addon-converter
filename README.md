@@ -31,9 +31,11 @@ An optional mode that activates the `run.sh` wrapper to enable advanced features
 ### 🧩 Other Features
 
 - **Universal Shell Support**: POSIX-compliant `/bin/sh` wrapper script, ensuring compatibility with minimalist images (e.g., Alpine) without `jq` or `bash` dependencies.
-- **Image Update Check**:
+- **Image Update Check & Architecture Detection**:
   - **Auto-Detection**: Automatically checks if a newer version of the base image is available (supports Major, Minor, and Patch detection).
-  - **Manual Refresh**: Trigger a fresh update check manually, bypassing the 6-hour cache.
+  - **Architecture Support**: Automatically detects compatible architectures for the container image (e.g., `amd64`, `aarch64`, `armv7`) using `crane`.
+  - **LTS Visibility**: Highlights architectures with Longterm Support (LTS) in the UI (Green/Red badges) based on Home Assistant's supported architectures.
+  - **Manual Refresh**: Trigger a fresh update check and architecture scan manually, bypassing the 6-hour cache.
   - **One-Click Update**: Update existing add-ons to a newer base image version with a single click.
 - **Clean Dockerfiles**: Minimal generated `Dockerfile`. Standard add-ons use `FROM`, while advanced ones integrate the wrapper logic automatically.
 - **Simplified Config**: Clean `config.yaml` that only includes `options` and `schema` when necessary.
@@ -112,7 +114,7 @@ Generated add-ons are created in the `/data/{addon-slug}` directory, as describe
 
 Each add-on directory contains:
 - `config.yaml`: Home Assistant configuration
-- `metadata.json`: Internal metadata (e.g., detected package manager) - keeps `config.yaml` clean for Home Assistant
+- `metadata.json`: Internal metadata (e.g., detected package manager, supported architectures) - keeps `config.yaml` clean for Home Assistant
 - `Dockerfile`: Based on the selected Docker image
 - `README.md`: Detailed add-on description (Markdown)
 - `icon.png`: The add-on icon (automatically created during self-conversion or manual upload)

@@ -23,6 +23,7 @@ class FilesReader extends FilesAbstract implements JsonSerializable
     protected string $detectedPm = '';
     protected bool $tmpfs = false;
     protected string $startupScript = '';
+    protected array $architectures = [];
 
     public function __construct(protected string $slug)
     {
@@ -200,6 +201,9 @@ class FilesReader extends FilesAbstract implements JsonSerializable
             if (isset($metadata['bashio_version'])) {
                 $this->bashioVersion = $metadata['bashio_version'];
             }
+            if (isset($metadata['architectures'])) {
+                $this->architectures = $metadata['architectures'];
+            }
         }
     }
 
@@ -232,6 +236,7 @@ class FilesReader extends FilesAbstract implements JsonSerializable
             'quirks'           => $this->quirks,
             'allow_user_env'   => $this->allowUserEnv,
             'bashio_version'   => $this->bashioVersion,
+            'architectures'    => $this->architectures,
             'startup_script'   => $this->startupScript
         ];
 

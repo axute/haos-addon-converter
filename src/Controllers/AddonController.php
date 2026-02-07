@@ -191,6 +191,16 @@ class AddonController extends ControllerAbstract
         ];
         $updates = Crane::getUpdateDetailed($image, $tag);
         $result = array_merge($result, $updates);
+
+        $architectures = Crane::getArchitectures($fullImage);
+        $result['architectures'] = [];
+        foreach ($architectures as $arch) {
+            $result['architectures'][] = [
+                'name' => $arch,
+                'lts'  => in_array($arch, \App\Generator\HaConfig::ARCHITECTURES_SUPPORTED_LONGTERM)
+            ];
+        }
+
         if (!is_dir(dirname($cacheFile))) {
             mkdir(dirname($cacheFile), 0777, true);
         }

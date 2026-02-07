@@ -9,10 +9,16 @@ class HaConfig extends Yamlfile
     public const string FILENAME = 'config.yaml';
     public const array ARCHITECTURES = [
         'aarch64',
+        'arm64',
         'amd64',
         'armhf',
         'armv7',
         'i386'
+    ];
+    public const array ARCHITECTURES_SUPPORTED_LONGTERM = [
+        'aarch64',
+        'arm64',
+        'amd64',
     ];
     const int INGRESS_PORT = 80;
     const string PANEL_ICON = 'mdi:puzzle';
