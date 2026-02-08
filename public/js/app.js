@@ -208,6 +208,13 @@ function startNew() {
     if (envVarsContainer) envVarsContainer.innerHTML = '';
     if (iconPreview) iconPreview.style.display = 'none';
 
+    featureFlags.forEach(flag => {
+        const el = document.getElementById(flag);
+        if (el) el.checked = false;
+    });
+
+    document.querySelectorAll('.privileged-checkbox').forEach(el => el.checked = false);
+
     iconBase64 = '';
 
     if (detectedPm) detectedPm.value = '';
@@ -318,12 +325,16 @@ function getEnvVars() {
     return vars;
 }
 
-function addPortMapping(containerPort = '', hostPort = '', description = '') {
+function addPortMapping(containerPort = '', hostPort = '', protocol = 'tcp', description = '') {
     const container = document.getElementById('portsContainer');
     const div = document.createElement('div');
     div.className = 'input-group mb-2 port-mapping-row';
     div.innerHTML = `
         <input type="number" class="form-control port-container" placeholder="Container Port" value="${containerPort}" style="max-width: 140px;">
+        <select class="form-select port-protocol" style="max-width: 90px;">
+            <option value="tcp" ${protocol === 'tcp' ? 'selected' : ''}>TCP</option>
+            <option value="udp" ${protocol === 'udp' ? 'selected' : ''}>UDP</option>
+        </select>
         <span class="input-group-text">→</span>
         <input type="number" class="form-control port-host" placeholder="Host Port" value="${hostPort}" style="max-width: 140px;">
         <input type="text" class="form-control port-description" placeholder="Description (optional)" value="${description}">
@@ -337,11 +348,13 @@ function getPortMappings() {
     const ports = [];
     rows.forEach(row => {
         const container = row.querySelector('.port-container').value;
+        const protocol = row.querySelector('.port-protocol').value;
         const host = row.querySelector('.port-host').value;
         const description = row.querySelector('.port-description').value.trim();
         if (container) {
             ports.push({
                 container: parseInt(container),
+                protocol: protocol,
                 host: (host) ? parseInt(host) : null,
                 description: description || null
             });
@@ -478,6 +491,22 @@ async function fetchImageTags() {
     }
 }
 
+const featureFlags = [
+    'host_network', 'host_ipc', 'host_dbus', 'host_pid', 'host_uts',
+    'hassio_api', 'homeassistant_api', 'docker_api', 'full_access',
+    'audio', 'video', 'gpio', 'usb', 'uart', 'udev',
+    'devicetree', 'kernel_modules', 'stdin', 'legacy', 'auth_api',
+    'advanced_feature', 'realtime', 'journald'
+];
+
+function getPrivileged() {
+    const caps = [];
+    document.querySelectorAll('.privileged-checkbox:checked').forEach(el => {
+        caps.push(el.value);
+    });
+    return caps;
+}
+
 async function handleConverterSubmit(e) {
     e.preventDefault();
     const data = {
@@ -494,6 +523,7 @@ async function handleConverterSubmit(e) {
         ingress_stream: document.getElementById('ingress_stream').checked,
         panel_icon: document.getElementById('panel_icon').value || 'mdi:link-variant',
         panel_title: document.getElementById('panel_title').value,
+        panel_admin: document.getElementById('panel_admin').checked,
         webui_port: document.getElementById('web_ui_port').value ? parseInt(document.getElementById('web_ui_port').value) : null,
         webui_protocol: document.getElementById('web_ui_protocol').value,
         webui_path: document.getElementById('web_ui_path').value,
@@ -507,8 +537,17 @@ async function handleConverterSubmit(e) {
         ports: getPortMappings(),
         map: getMapMappings(),
         env_vars: getEnvVars(),
-        startup_script: startupScriptEditor.getValue()
+        startup_script: startupScriptEditor.getValue(),
+        privileged: getPrivileged(),
+        feature_flags: {}
     };
+
+    featureFlags.forEach(flag => {
+        const el = document.getElementById(flag);
+        if (el) {
+            data.feature_flags[flag] = el.checked;
+        }
+    });
 
     const response = await fetch(`${basePath}/generate`, {
         method: 'POST',
@@ -632,6 +671,9 @@ async function editAddon(slug) {
     const panelTitleInput = document.getElementById('panel_title');
     if (panelTitleInput) panelTitleInput.value = addon.panel_title || '';
 
+    const panelAdminCheckbox = document.getElementById('panel_admin');
+    if (panelAdminCheckbox) panelAdminCheckbox.checked = addon.panel_admin !== false;
+
     let webuiPort = '';
     let webuiProtocol = 'http';
     let webuiPath = '/';
@@ -695,7 +737,7 @@ async function editAddon(slug) {
         portsContainer.innerHTML = '';
         if (addon.ports && addon.ports.length > 0) {
             addon.ports.forEach(p => {
-                addPortMapping(p.container, p.host || '', p.description || '');
+                addPortMapping(p.container, p.host || '', p.protocol || 'tcp', p.description || '');
             });
         }
     }
@@ -739,6 +781,21 @@ async function editAddon(slug) {
             await fetchBashioVersions();
         }
         bashioVersionInput.value = addon.bashio_version || window.bashioVersions[0] || '';
+    }
+
+    featureFlags.forEach(flag => {
+        const el = document.getElementById(flag);
+        if (el) {
+            el.checked = !!(addon.feature_flags && addon.feature_flags[flag]);
+        }
+    });
+
+    if (addon.privileged && Array.isArray(addon.privileged)) {
+        document.querySelectorAll('.privileged-checkbox').forEach(el => {
+            el.checked = addon.privileged.includes(el.value);
+        });
+    } else {
+        document.querySelectorAll('.privileged-checkbox').forEach(el => el.checked = false);
     }
 
     resetAccordion();

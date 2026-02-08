@@ -62,7 +62,7 @@
                             </div>
                             <div class="col-md-4">
                                 <div class="mb-3">
-                                    <label class="form-label">Detected Package Manager</label>
+                                    <label class="form-label" for="detected_pm">Detected Package Manager</label>
                                     <div class="input-group">
                                         <input type="text" class="form-control" id="detected_pm" readonly placeholder="unknown">
                                         <button class="btn btn-outline-secondary" type="button" id="btnDetectPM" onclick="detectPM(true)">
@@ -131,6 +131,12 @@
                                     Enable Ingress Stream
                                 </label>
                             </div>
+                            <div class="form-check mt-2">
+                                <input class="form-check-input" type="checkbox" id="panel_admin" checked>
+                                <label class="form-check-label" for="panel_admin">
+                                    <strong>Admin Panel Only</strong> - Make the menu entry only available to users in the admin group.
+                                </label>
+                            </div>
                         </div>
 
                         <div id="webUiPortContainer" class="mb-3">
@@ -183,6 +189,7 @@
                                 </button>
                             </div>
                             <div id="portsContainer"></div>
+                            <div class="form-text mt-1 text-info"><span class="mdi mdi-information-outline"></span> <strong>Note:</strong> Protocols like UDP may require specific Home Assistant versions or host networking to work correctly in some environments.</div>
                         </div>
                     </div>
                 </div>
@@ -273,6 +280,216 @@
                             <label for="startup_script" class="form-label">Custom Startup Script (run.sh)</label>
                             <textarea id="startup_script"></textarea>
                             <div class="form-text mt-2">This script will be executed before the main application starts.</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Section 5: Feature Flags -->
+            <div class="accordion-item">
+                <h2 class="accordion-header">
+                    <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseFeatures">
+                        5. Feature Flags
+                    </button>
+                </h2>
+                <div id="collapseFeatures" class="accordion-collapse collapse" data-bs-parent="#formAccordion">
+                    <div class="accordion-body">
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="form-check form-switch mb-3">
+                                    <input class="form-check-input" type="checkbox" id="host_network">
+                                    <label class="form-check-label" for="host_network"><strong>host_network</strong></label>
+                                    <div class="form-text">If true, the app runs on the host network.</div>
+                                </div>
+                                <div class="form-check form-switch mb-3">
+                                    <input class="form-check-input" type="checkbox" id="host_ipc">
+                                    <label class="form-check-label" for="host_ipc"><strong>host_ipc</strong></label>
+                                    <div class="form-text">Allow the IPC namespace to be shared with others.</div>
+                                </div>
+                                <div class="form-check form-switch mb-3">
+                                    <input class="form-check-input" type="checkbox" id="host_dbus">
+                                    <label class="form-check-label" for="host_dbus"><strong>host_dbus</strong></label>
+                                    <div class="form-text">Map the host D-Bus service into the app.</div>
+                                </div>
+                                <div class="form-check form-switch mb-3">
+                                    <input class="form-check-input" type="checkbox" id="host_pid">
+                                    <label class="form-check-label" for="host_pid"><strong>host_pid</strong></label>
+                                    <div class="form-text">Allow the container to run on the host PID namespace.</div>
+                                </div>
+                                <div class="form-check form-switch mb-3">
+                                    <input class="form-check-input" type="checkbox" id="host_uts">
+                                    <label class="form-check-label" for="host_uts"><strong>host_uts</strong></label>
+                                    <div class="form-text">Use the hosts UTS namespace.</div>
+                                </div>
+                                <div class="form-check form-switch mb-3">
+                                    <input class="form-check-input" type="checkbox" id="hassio_api">
+                                    <label class="form-check-label" for="hassio_api"><strong>hassio_api</strong></label>
+                                    <div class="form-text">This app can access the Supervisor's REST API.</div>
+                                </div>
+                                <div class="form-check form-switch mb-3">
+                                    <input class="form-check-input" type="checkbox" id="homeassistant_api">
+                                    <label class="form-check-label" for="homeassistant_api"><strong>homeassistant_api</strong></label>
+                                    <div class="form-text">This app can access the Home Assistant REST API proxy.</div>
+                                </div>
+                                <div class="form-check form-switch mb-3">
+                                    <input class="form-check-input" type="checkbox" id="docker_api">
+                                    <label class="form-check-label" for="docker_api"><strong>docker_api</strong></label>
+                                    <div class="form-text">Allow read-only access to the Docker API for the app.</div>
+                                </div>
+                                <div class="form-check form-switch mb-3">
+                                    <input class="form-check-input" type="checkbox" id="full_access">
+                                    <label class="form-check-label" for="full_access"><strong>full_access</strong></label>
+                                    <div class="form-text">Give full access to hardware like the privileged mode in Docker.</div>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="form-check form-switch mb-3">
+                                    <input class="form-check-input" type="checkbox" id="audio">
+                                    <label class="form-check-label" for="audio"><strong>audio</strong></label>
+                                    <div class="form-text">Mark this app to use the internal audio system.</div>
+                                </div>
+                                <div class="form-check form-switch mb-3">
+                                    <input class="form-check-input" type="checkbox" id="video">
+                                    <label class="form-check-label" for="video"><strong>video</strong></label>
+                                    <div class="form-text">Mark this app to use the internal video system.</div>
+                                </div>
+                                <div class="form-check form-switch mb-3">
+                                    <input class="form-check-input" type="checkbox" id="gpio">
+                                    <label class="form-check-label" for="gpio"><strong>gpio</strong></label>
+                                    <div class="form-text">Access to the GPIO interface from the kernel.</div>
+                                </div>
+                                <div class="form-check form-switch mb-3">
+                                    <input class="form-check-input" type="checkbox" id="usb">
+                                    <label class="form-check-label" for="usb"><strong>usb</strong></label>
+                                    <div class="form-text">Map the raw USB access into the app.</div>
+                                </div>
+                                <div class="form-check form-switch mb-3">
+                                    <input class="form-check-input" type="checkbox" id="uart">
+                                    <label class="form-check-label" for="uart"><strong>uart</strong></label>
+                                    <div class="form-text">Auto mapping all UART/serial devices from the host.</div>
+                                </div>
+                                <div class="form-check form-switch mb-3">
+                                    <input class="form-check-input" type="checkbox" id="udev">
+                                    <label class="form-check-label" for="udev"><strong>udev</strong></label>
+                                    <div class="form-text">Host udev database read-only mounted into the app.</div>
+                                </div>
+                                <div class="form-check form-switch mb-3">
+                                    <input class="form-check-input" type="checkbox" id="devicetree">
+                                    <label class="form-check-label" for="devicetree"><strong>devicetree</strong></label>
+                                    <div class="form-text">Map /device-tree into the app.</div>
+                                </div>
+                                <div class="form-check form-switch mb-3">
+                                    <input class="form-check-input" type="checkbox" id="kernel_modules">
+                                    <label class="form-check-label" for="kernel_modules"><strong>kernel_modules</strong></label>
+                                    <div class="form-text">Map host kernel modules and config into the app.</div>
+                                </div>
+                                <div class="form-check form-switch mb-3">
+                                    <input class="form-check-input" type="checkbox" id="stdin">
+                                    <label class="form-check-label" for="stdin"><strong>stdin</strong></label>
+                                    <div class="form-text">Use the STDIN with Home Assistant API.</div>
+                                </div>
+                                <div class="form-check form-switch mb-3">
+                                    <input class="form-check-input" type="checkbox" id="legacy">
+                                    <label class="form-check-label" for="legacy"><strong>legacy</strong></label>
+                                    <div class="form-text">Enable legacy mode if no labels are present.</div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="row">
+                            <div class="col-12 mb-3">
+                                <label class="form-label"><strong>privileged</strong> (Capabilites)</label>
+                                <div class="row" id="privileged_list">
+                                    <div class="col-md-4">
+                                        <div class="form-check">
+                                            <input class="form-check-input privileged-checkbox" type="checkbox" value="BPF" id="priv_BPF">
+                                            <label class="form-check-label" for="priv_BPF">BPF</label>
+                                        </div>
+                                        <div class="form-check">
+                                            <input class="form-check-input privileged-checkbox" type="checkbox" value="CHECKPOINT_RESTORE" id="priv_CHECKPOINT_RESTORE">
+                                            <label class="form-check-label" for="priv_CHECKPOINT_RESTORE">CHECKPOINT_RESTORE</label>
+                                        </div>
+                                        <div class="form-check">
+                                            <input class="form-check-input privileged-checkbox" type="checkbox" value="DAC_READ_SEARCH" id="priv_DAC_READ_SEARCH">
+                                            <label class="form-check-label" for="priv_DAC_READ_SEARCH">DAC_READ_SEARCH</label>
+                                        </div>
+                                        <div class="form-check">
+                                            <input class="form-check-input privileged-checkbox" type="checkbox" value="IPC_LOCK" id="priv_IPC_LOCK">
+                                            <label class="form-check-label" for="priv_IPC_LOCK">IPC_LOCK</label>
+                                        </div>
+                                        <div class="form-check">
+                                            <input class="form-check-input privileged-checkbox" type="checkbox" value="NET_ADMIN" id="priv_NET_ADMIN">
+                                            <label class="form-check-label" for="priv_NET_ADMIN">NET_ADMIN</label>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-4">
+                                        <div class="form-check">
+                                            <input class="form-check-input privileged-checkbox" type="checkbox" value="NET_RAW" id="priv_NET_RAW">
+                                            <label class="form-check-label" for="priv_NET_RAW">NET_RAW</label>
+                                        </div>
+                                        <div class="form-check">
+                                            <input class="form-check-input privileged-checkbox" type="checkbox" value="PERFMON" id="priv_PERFMON">
+                                            <label class="form-check-label" for="priv_PERFMON">PERFMON</label>
+                                        </div>
+                                        <div class="form-check">
+                                            <input class="form-check-input privileged-checkbox" type="checkbox" value="SYS_ADMIN" id="priv_SYS_ADMIN">
+                                            <label class="form-check-label" for="priv_SYS_ADMIN">SYS_ADMIN</label>
+                                        </div>
+                                        <div class="form-check">
+                                            <input class="form-check-input privileged-checkbox" type="checkbox" value="SYS_MODULE" id="priv_SYS_MODULE">
+                                            <label class="form-check-label" for="priv_SYS_MODULE">SYS_MODULE</label>
+                                        </div>
+                                        <div class="form-check">
+                                            <input class="form-check-input privileged-checkbox" type="checkbox" value="SYS_NICE" id="priv_SYS_NICE">
+                                            <label class="form-check-label" for="priv_SYS_NICE">SYS_NICE</label>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-4">
+                                        <div class="form-check">
+                                            <input class="form-check-input privileged-checkbox" type="checkbox" value="SYS_PTRACE" id="priv_SYS_PTRACE">
+                                            <label class="form-check-label" for="priv_SYS_PTRACE">SYS_PTRACE</label>
+                                        </div>
+                                        <div class="form-check">
+                                            <input class="form-check-input privileged-checkbox" type="checkbox" value="SYS_RAWIO" id="priv_SYS_RAWIO">
+                                            <label class="form-check-label" for="priv_SYS_RAWIO">SYS_RAWIO</label>
+                                        </div>
+                                        <div class="form-check">
+                                            <input class="form-check-input privileged-checkbox" type="checkbox" value="SYS_RESOURCE" id="priv_SYS_RESOURCE">
+                                            <label class="form-check-label" for="priv_SYS_RESOURCE">SYS_RESOURCE</label>
+                                        </div>
+                                        <div class="form-check">
+                                            <input class="form-check-input privileged-checkbox" type="checkbox" value="SYS_TIME" id="priv_SYS_TIME">
+                                            <label class="form-check-label" for="priv_SYS_TIME">SYS_TIME</label>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="form-text">Privilege for access to hardware/system (Capabilities).</div>
+                            </div>
+                        </div>
+
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="form-check form-switch mb-3">
+                                    <input class="form-check-input" type="checkbox" id="auth_api">
+                                    <label class="form-check-label" for="auth_api"><strong>auth_api</strong></label>
+                                    <div class="form-text">Allow access to Home Assistant user backend.</div>
+                                </div>
+                                <div class="form-check form-switch mb-3">
+                                    <input class="form-check-input" type="checkbox" id="advanced_feature">
+                                    <label class="form-check-label" for="advanced_feature"><strong>advanced</strong></label>
+                                    <div class="form-text">Require "Advanced" mode to show.</div>
+                                </div>
+                                <div class="form-check form-switch mb-3">
+                                    <input class="form-check-input" type="checkbox" id="realtime">
+                                    <label class="form-check-label" for="realtime"><strong>realtime</strong></label>
+                                    <div class="form-text">Access to host schedule including SYS_NICE.</div>
+                                </div>
+                                <div class="form-check form-switch mb-3">
+                                    <input class="form-check-input" type="checkbox" id="journald">
+                                    <label class="form-check-label" for="journald"><strong>journald</strong></label>
+                                    <div class="form-text">Host's system journal mapped read-only.</div>
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </div>

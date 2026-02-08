@@ -148,7 +148,8 @@ class FilesWriter extends FilesAbstract
                 stream: !empty($this->data['ingress_stream']),
                 title: $this->data['panel_title'] ?? null,
                 icon: $this->data['panel_icon'] ?? null,
-                ingressEntry: $this->data['ingress_entry'] ?? '/'
+                ingressEntry: $this->data['ingress_entry'] ?? '/',
+                panelAdmin: $this->data['panel_admin'] ?? true
             );
         } elseif (!empty($this->data['webui_port'])) {
             $haConfig->setWebUI(
@@ -179,7 +180,12 @@ class FilesWriter extends FilesAbstract
         if (!empty($this->data['ports'])) {
             foreach ($this->data['ports'] as $p) {
                 if (!empty($p['container'])) {
-                    $haConfig->addPort($p['container'], $p['host'] ?? null, description: $p['description'] ?? null);
+                    $haConfig->addPort(
+                        $p['container'],
+                        $p['host'] ?? null,
+                        $p['protocol'] ?? 'tcp',
+                        description: $p['description'] ?? null
+                    );
                 }
             }
         }
@@ -203,6 +209,18 @@ class FilesWriter extends FilesAbstract
             if (!empty($this->data['allow_user_env'])) {
                 $haConfig->addOption('env_vars', [], ['str']);
             }
+        }
+
+        if (!empty($this->data['feature_flags'])) {
+            foreach ($this->data['feature_flags'] as $key => $enabled) {
+                if ($enabled) {
+                    $haConfig->setFeature($key, true);
+                }
+            }
+        }
+
+        if (!empty($this->data['privileged'])) {
+            $haConfig->setPrivileged($this->data['privileged']);
         }
 
         file_put_contents($this->addonPath . '/' . HaConfig::FILENAME, $haConfig);

@@ -24,6 +24,8 @@ class FilesReader extends FilesAbstract implements JsonSerializable
     protected bool $tmpfs = false;
     protected string $startupScript = '';
     protected array $architectures = [];
+    protected array $featureFlags = [];
+    protected array $privileged = [];
 
     public function __construct(protected string $slug)
     {
@@ -109,7 +111,7 @@ class FilesReader extends FilesAbstract implements JsonSerializable
                     $containerPort = $parts[0];
                     $protocol = 'tcp';
                 }
-                $description = $portsDescriptions;
+                $description = null;
                 foreach ($portsDescriptions as $pd => $portsDescription) {
                     if ($pd === $portProtocol) {
                         $description = $portsDescription;
@@ -133,6 +135,26 @@ class FilesReader extends FilesAbstract implements JsonSerializable
                 ];
             }
         }
+
+        // Feature Flags einlesen
+        $possibleFlags = [
+            'host_network', 'host_ipc', 'host_dbus', 'host_pid', 'host_uts',
+            'hassio_api', 'homeassistant_api', 'docker_api', 'full_access',
+            'audio', 'video', 'gpio', 'usb', 'uart', 'udev',
+            'devicetree', 'kernel_modules', 'stdin', 'legacy', 'auth_api',
+            'advanced', 'realtime', 'journald'
+        ];
+        foreach ($possibleFlags as $flag) {
+            if (isset($this->config[$flag])) {
+                $uiKey = ($flag === 'advanced') ? 'advanced_feature' : $flag;
+                $this->featureFlags[$uiKey] = (bool)$this->config[$flag];
+            }
+        }
+
+        if (isset($this->config['privileged']) && is_array($this->config['privileged'])) {
+            $this->privileged = $this->config['privileged'];
+        }
+
         return $this;
     }
 
@@ -224,6 +246,7 @@ class FilesReader extends FilesAbstract implements JsonSerializable
             'ingress_stream'   => $this->config['ingress_stream'] ?? false,
             'panel_icon'       => $this->config['panel_icon'] ?? 'mdi:link-variant',
             'panel_title'      => $this->config['panel_title'] ?? null,
+            'panel_admin'      => $this->config['panel_admin'] ?? true,
             'webui'            => $this->config['webui'] ?? '',
             'backup'           => $this->config['backup'] ?? 'disabled',
             'tmpfs'            => $tmpfs ?? (bool)($this->config['tmpfs'] ?? false),
@@ -233,6 +256,8 @@ class FilesReader extends FilesAbstract implements JsonSerializable
             'ports'            => $this->ports,
             'map'              => $this->config['map'] ?? [],
             'env_vars'         => $this->envVars,
+            'feature_flags'    => $this->featureFlags,
+            'privileged'       => $this->privileged,
             'quirks'           => $this->quirks,
             'allow_user_env'   => $this->allowUserEnv,
             'bashio_version'   => $this->bashioVersion,

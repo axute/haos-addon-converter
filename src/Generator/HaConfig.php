@@ -36,10 +36,13 @@ class HaConfig extends Yamlfile
     protected string $panel_icon = 'mdi:puzzle';
     protected ?string $panel_title = null;
     protected string $ingress_entry = '/';
+    protected bool $panel_admin = true;
     protected array $schema = [];
     protected bool $tmpfs = false;
     protected array $environment = [];
     protected ?string $url = null;
+    protected array $features = [];
+    protected array $privileged = [];
 
     public function __construct(protected string $name, protected string $version, protected string $slug, protected string $description, protected array $architectures = self::ARCHITECTURES)
     {
@@ -132,7 +135,7 @@ class HaConfig extends Yamlfile
         return $this;
     }
 
-    public function setIngress(int $port = self::INGRESS_PORT, bool $stream = false, ?string $title = null, ?string $icon = null, string $ingressEntry = '/'): static
+    public function setIngress(int $port = self::INGRESS_PORT, bool $stream = false, ?string $title = null, ?string $icon = null, string $ingressEntry = '/', bool $panelAdmin = true): static
     {
         $this->ingress = true;
         $this->ingress_port = $port;
@@ -140,6 +143,7 @@ class HaConfig extends Yamlfile
         $this->ingress_entry = $ingressEntry;
         $this->panel_title = $title ?? $this->name;
         $this->panel_icon = $icon ?? self::PANEL_ICON;
+        $this->panel_admin = $panelAdmin;
         return $this;
     }
 
@@ -173,6 +177,7 @@ class HaConfig extends Yamlfile
             $config['ingress_stream'] = $this->ingress_stream;
             $config['ingress_entry'] = $this->ingress_entry;
             $config['panel_icon'] = $this->panel_icon;
+            $config['panel_admin'] = $this->panel_admin;
 
             if ($this->panel_title !== null) {
                 $config['panel_title'] = $this->panel_title;
@@ -191,12 +196,34 @@ class HaConfig extends Yamlfile
             $config['options'] = $this->options;
             $config['schema'] = $this->schema;
         }
+        if (count($this->privileged) > 0) {
+            $config['privileged'] = $this->privileged;
+        }
+        foreach ($this->features as $key => $value) {
+            // "advanced" ist in SupportedFeatures.md so gelistet, in config.yaml heißt es aber "advanced"
+            // Wir mappen advanced_feature (aus UI) auf advanced (für config.yaml) falls nötig, 
+            // oder wir lassen es so wenn der key direkt passt.
+            $configKey = ($key === 'advanced_feature') ? 'advanced' : $key;
+            $config[$configKey] = $value;
+        }
         return $config;
     }
 
     public function setUrl(?string $url): HaConfig
     {
         $this->url = $url;
+        return $this;
+    }
+
+    public function setFeature(string $key, bool $value): static
+    {
+        $this->features[$key] = $value;
+        return $this;
+    }
+
+    public function setPrivileged(array $privileged): static
+    {
+        $this->privileged = $privileged;
         return $this;
     }
 }
