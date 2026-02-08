@@ -1,80 +1,80 @@
 <div id="update-status-{{ slug }}" class="d-inline-block">
-{% if update.status == 'success' %}
-    {% set has_any_update = false %}
-    {% if update.major %}
-        {% set has_any_update = true %}
-        <span class="badge bg-danger text-white rounded-pill ms-1" style="font-size: 0.7rem; cursor: pointer;" 
-              title="Major update available: {{ update.major }} (Current: {{ update.current_tag }})"
-              onclick="selfConvert('{{ update.major }}')">
+    {% if update.status == 'success' %}
+        {% set has_any_update = false %}
+        {% if update.major %}
+            {% set has_any_update = true %}
+            <span class="badge bg-danger text-white rounded-pill ms-1" style="font-size: 0.7rem; cursor: pointer;"
+                  title="Major update available: {{ update.major }} (Current: {{ update.current_tag }})"
+                  onclick="selfConvert( '{{ update.slug }}','{{ update.major }}')">
             <span class="mdi mdi-chevron-double-up"></span> Major: {{ update.major }}
         </span>
-    {% endif %}
-    {% if update.minor %}
-        {% set has_any_update = true %}
-        <span class="badge bg-warning text-dark rounded-pill ms-1" style="font-size: 0.7rem; cursor: pointer;" 
-              title="Minor update available: {{ update.minor }} (Current: {{ update.current_tag }})"
-              onclick="selfConvert('{{ update.minor }}')">
+        {% endif %}
+        {% if update.minor %}
+            {% set has_any_update = true %}
+            <span class="badge bg-warning text-dark rounded-pill ms-1" style="font-size: 0.7rem; cursor: pointer;"
+                  title="Minor update available: {{ update.minor }} (Current: {{ update.current_tag }})"
+                  onclick="selfConvert('{{ update.slug }}','{{ update.minor }}')">
             <span class="mdi mdi-chevron-up"></span> Minor: {{ update.minor }}
         </span>
-    {% endif %}
-    {% if update.fix %}
-        {% set has_any_update = true %}
-        <span class="badge bg-info text-dark rounded-pill ms-1" style="font-size: 0.7rem; cursor: pointer;" 
-              title="Fix/Patch available: {{ update.fix }} (Current: {{ update.current_tag }})"
-              onclick="selfConvert('{{ update.fix }}')">
+        {% endif %}
+        {% if update.fix %}
+            {% set has_any_update = true %}
+            <span class="badge bg-info text-dark rounded-pill ms-1" style="font-size: 0.7rem; cursor: pointer;"
+                  title="Fix/Patch available: {{ update.fix }} (Current: {{ update.current_tag }})"
+                  onclick="selfConvert('{{ update.slug }}','{{ update.fix }}')">
             <span class="mdi mdi-patch"></span> Fix: {{ update.fix }}
         </span>
-    {% endif %}
+        {% endif %}
 
-    {% if not has_any_update %}
-        {% if update.has_update %}
-            <span class="badge bg-warning text-dark rounded-pill ms-1" style="font-size: 0.7rem; cursor: pointer;" 
-                  title="Image was updated (Remote: {{ update.remote_created|date('d.m.Y H:i') }}). Click to update."
-                  onclick="selfConvert('{{ update.current_tag }}')">
+        {% if not has_any_update %}
+            {% if update.has_update %}
+                <span class="badge bg-warning text-dark rounded-pill ms-1" style="font-size: 0.7rem; cursor: pointer;"
+                      title="Image was updated (Remote: {{ update.remote_created|date('d.m.Y H:i') }}). Click to update."
+                      onclick="selfConvert('{{ update.current_tag }}')">
                 <span class="mdi mdi-update"></span> Update available
             </span>
-        {% else %}
-            <span class="badge bg-success rounded-pill ms-1" style="font-size: 0.7rem;" title="Up to date">
+            {% else %}
+                <span class="badge bg-success rounded-pill ms-1" style="font-size: 0.7rem;" title="Up to date">
                 <span class="mdi mdi-check"></span> Up to date
             </span>
+            {% endif %}
         {% endif %}
-    {% endif %}
 
-    {% if update.architectures is not empty %}
-        <span class="ms-1" style="font-size: 0.7rem;">
+        {% if update.architectures is not empty %}
+            <span class="ms-1" style="font-size: 0.7rem;">
             {% for arch in update.architectures %}
                 <span class="badge {{ arch.lts ? 'bg-success' : 'bg-danger' }} rounded-pill" style="opacity: 0.8;" title="{{ arch.lts ? 'Longterm Support' : 'No Longterm Support' }}">
                     {{ arch.name }}
                 </span>
             {% endfor %}
         </span>
-    {% endif %}
+        {% endif %}
 
-    <span class="ms-1 text-muted htmx-indicator-container" style="cursor: pointer; font-size: 0.8rem;" 
-          title="Update-Check manuell triggern"
-          hx-get="{{ basePath }}/fragments/check-update/{{ slug }}?force=1"
-          hx-target="#update-status-{{ slug }}"
-          hx-swap="outerHTML"
-          hx-indicator="this">
+        <span class="ms-1 text-muted htmx-indicator-container" style="cursor: pointer; font-size: 0.8rem;"
+              title="Update-Check manuell triggern"
+              hx-get="{{ basePath }}/fragments/check-update/{{ slug }}?force=1"
+              hx-target="#update-status-{{ slug }}"
+              hx-swap="outerHTML"
+              hx-indicator="this">
         <span class="mdi mdi-refresh refresh-icon"></span>
         <span class="mdi mdi-loading mdi-spin loading-icon" style="display:none;"></span>
     </span>
-{% elseif update.status == 'error' %}
-    <span class="badge bg-light text-muted rounded-pill ms-1" style="font-size: 0.7rem;" title="{{ update.message }}">
+    {% elseif update.status == 'error' %}
+        <span class="badge bg-light text-muted rounded-pill ms-1" style="font-size: 0.7rem;" title="{{ update.message }}">
         <span class="mdi mdi-alert-circle-outline"></span> Check failed
     </span>
-    <span class="ms-1 text-muted htmx-indicator-container" style="cursor: pointer; font-size: 0.8rem;" 
-          title="Update-Check erneut versuchen"
-          hx-get="{{ basePath }}/fragments/check-update/{{ slug }}?force=1"
-          hx-target="#update-status-{{ slug }}"
-          hx-swap="outerHTML"
-          hx-indicator="this">
+        <span class="ms-1 text-muted htmx-indicator-container" style="cursor: pointer; font-size: 0.8rem;"
+              title="Update-Check erneut versuchen"
+              hx-get="{{ basePath }}/fragments/check-update/{{ slug }}?force=1"
+              hx-target="#update-status-{{ slug }}"
+              hx-swap="outerHTML"
+              hx-indicator="this">
         <span class="mdi mdi-refresh refresh-icon"></span>
         <span class="mdi mdi-loading mdi-spin loading-icon" style="display:none;"></span>
     </span>
-{% else %}
-    <span class="badge bg-light text-muted rounded-pill ms-1" style="font-size: 0.7rem;">
+    {% else %}
+        <span class="badge bg-light text-muted rounded-pill ms-1" style="font-size: 0.7rem;">
         <span class="mdi mdi-loading mdi-spin"></span> Checking...
     </span>
-{% endif %}
+    {% endif %}
 </div>

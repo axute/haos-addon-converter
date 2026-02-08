@@ -131,7 +131,11 @@ class HaConfig extends Yamlfile
             ]) === false) {
             throw new InvalidArgumentException('Invalid scheme: ' . var_export($scheme, true));
         }
-        $this->webui = $scheme . '://[HOST]:[PORT:' . $port . ']' . $path;
+        return $this->setWebuiPrepared($scheme . '://[HOST]:[PORT:' . $port . ']' . $path);
+    }
+    public function setWebuiPrepared(string $webui): static
+    {
+        $this->webui = $webui;
         return $this;
     }
 

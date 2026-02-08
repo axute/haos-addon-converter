@@ -9,9 +9,13 @@ use Symfony\Component\Yaml\Yaml;
 
 class Converter
 {
+    public const string REPOSOTIRY_PATH = 'axute/haos-addon-converter';
+    public const string PUBLIC_IMAGE_NAME = 'ghcr.io/axute/haos-addon-converter';
+    public const string SLUG = 'haos_addon_converter';
+
     public static function getTags(): array
     {
-        $imageName = 'axute/haos-addon-converter';
+        $imageName = self::REPOSOTIRY_PATH;
         $tags = ['latest'];
 
         try {
@@ -55,7 +59,7 @@ class Converter
 
     public static function selfConvert(string $tag): array
     {
-        $slug = 'haos_addon_converter';
+        $slug = self::SLUG;
         $configFile = FilesReader::getAddonDir($slug) . '/' . HaConfig::FILENAME;
         $currentVersion = '1.0.0';
 
@@ -64,21 +68,12 @@ class Converter
             $currentVersion = $config['version'] ?? '1.0.0';
         }
 
-        // Version hochzählen
-        $parts = explode('.', $currentVersion);
-        if (count($parts) === 3) {
-            $parts[2]++;
-            $newVersion = implode('.', $parts);
-        } else {
-            $newVersion = $currentVersion . '.1';
-        }
-
         // Daten für die Generierung vorbereiten
         $data = [
             'name'           => 'HAOS Add-on Converter',
-            'image'          => "ghcr.io/axute/haos-addon-converter:$tag",
+            'image'          => self::PUBLIC_IMAGE_NAME . ":" . $tag,
             'description'    => 'Web-Converter zum Konvertieren von Docker-Images in Home Assistant Add-ons.',
-            'version'        => $newVersion,
+            'version'        => $currentVersion,
             'url'            => 'https://github.com/axute/haos-addon-converter',
             'ingress'        => true,
             'ingress_port'   => 80,

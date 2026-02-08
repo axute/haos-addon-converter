@@ -2,6 +2,8 @@ services:
   haos-converter:
     build: .
     container_name: haos-addon-converter
+    environment:
+      - HAOS_DEBUG=true
     ports:
       - "8985:80"
     volumes:

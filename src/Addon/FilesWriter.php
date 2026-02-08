@@ -6,6 +6,7 @@ use App\Generator\Dockerfile;
 use App\Generator\HaConfig;
 use App\Generator\HaRepository;
 use App\Generator\Metadata;
+use App\Tools\Converter;
 use App\Tools\Crane;
 use InvalidArgumentException;
 use RuntimeException;
@@ -53,7 +54,7 @@ class FilesWriter extends FilesAbstract
     private function generateSlug(): string
     {
         if ($this->isSelfConvert) {
-            return 'haos_addon_converter';
+            return Converter::SLUG;
         }
 
         $slug = strtolower($this->addonName);
@@ -65,6 +66,24 @@ class FilesWriter extends FilesAbstract
         $slug = preg_replace('/[^a-z0-9_]/', '', $slug);
         $slug = preg_replace('/_+/', '_', $slug);
         return trim($slug, '_');
+    }
+
+    public function increaseVersion(): static
+    {
+        $currentVersion = $this->data['version'] ?? null;
+        if ($currentVersion === null) {
+            return $this;
+        }
+
+        // Version hochzählen
+        $parts = explode('.', $currentVersion);
+        if (count($parts) === 3) {
+            $parts[2]++;
+            $this->data['version'] = implode('.', $parts);
+        } else {
+            $this->data['version'] = $currentVersion . '.1';
+        }
+        return $this;
     }
 
     public function create(): array
@@ -85,17 +104,6 @@ class FilesWriter extends FilesAbstract
             'status' => 'success',
             'path'   => realpath($this->addonPath)
         ];
-    }
-
-    private function getImageConfig(): array
-    {
-        $command = "crane config " . escapeshellarg($this->image) . " 2>&1";
-        $output = shell_exec($command);
-        $data = json_decode($output, true);
-        if (json_last_error() !== JSON_ERROR_NONE) {
-            throw new RuntimeException(json_last_error_msg());
-        }
-        return $data;
     }
 
     protected function generateMetadata(): static
@@ -123,6 +131,27 @@ class FilesWriter extends FilesAbstract
         file_put_contents($metadataFile, new Metadata($metadata));
         $this->generateHelperFiles($origEntrypoint, $origCmd);
         return $this;
+    }
+
+    private function generateHelperFiles($origEntrypoint, $origCmd): void
+    {
+        $allowUserEnv = $this->data['allow_user_env'] ?? false;
+        $startupScript = $this->data['startup_script'] ?? '';
+
+        $needsRunSh = ($this->quirks && ($this->hasEditableEnv || !empty($startupScript) || $allowUserEnv)) || $allowUserEnv;
+
+        if ($needsRunSh) {
+            copy(__DIR__ . '/../../helper/run.sh', $this->addonPath . '/run.sh');
+            chmod($this->addonPath . '/run.sh', 0755);
+
+            file_put_contents($this->addonPath . '/original_entrypoint', (is_array($origEntrypoint) && !empty($origEntrypoint)) ? implode(' ', $origEntrypoint) : ($origEntrypoint ?? ''));
+            file_put_contents($this->addonPath . '/original_cmd', (is_array($origCmd) && !empty($origCmd)) ? implode(' ', $origCmd) : ($origCmd ?? ''));
+
+            if (!empty($startupScript)) {
+                file_put_contents($this->addonPath . '/start.sh', $startupScript);
+                chmod($this->addonPath . '/start.sh', 0755);
+            }
+        }
     }
 
     protected function generateConfigYaml(): static
@@ -157,6 +186,8 @@ class FilesWriter extends FilesAbstract
                 path: $this->data['webui_path'] ?? '/',
                 scheme: $this->data['webui_protocol'] ?? 'http'
             );
+        } elseif(!empty($this->data['webui'])) {
+            $haConfig->setWebuiPrepared($this->data['webui']);
         }
 
         if (isset($this->data['backup'])) {
@@ -169,9 +200,11 @@ class FilesWriter extends FilesAbstract
 
         if (!empty($this->data['map'])) {
             foreach ($this->data['map'] as $map) {
+                $type = $map['folder'] ?? $map['type'];
+                $readOnly = array_key_exists('mode', $map) ? $map['mode'] === 'ro' : ($map['read_only'] ?? true) ;
                 $haConfig->addMap(
-                    type: $map['folder'],
-                    readOnly: $map['mode'] === 'ro',
+                    type: $type,
+                    readOnly: $readOnly,
                     path: $map['path'] ?? null
                 );
             }
@@ -260,27 +293,6 @@ class FilesWriter extends FilesAbstract
         return $this;
     }
 
-    private function generateHelperFiles($origEntrypoint, $origCmd): void
-    {
-        $allowUserEnv = $this->data['allow_user_env'] ?? false;
-        $startupScript = $this->data['startup_script'] ?? '';
-
-        $needsRunSh = ($this->quirks && ($this->hasEditableEnv || !empty($startupScript) || $allowUserEnv)) || $allowUserEnv;
-
-        if ($needsRunSh) {
-            copy(__DIR__ . '/../../helper/run.sh', $this->addonPath . '/run.sh');
-            chmod($this->addonPath . '/run.sh', 0755);
-
-            file_put_contents($this->addonPath . '/original_entrypoint', (is_array($origEntrypoint) && !empty($origEntrypoint)) ? implode(' ', $origEntrypoint) : ($origEntrypoint ?? ''));
-            file_put_contents($this->addonPath . '/original_cmd', (is_array($origCmd) && !empty($origCmd)) ? implode(' ', $origCmd) : ($origCmd ?? ''));
-
-            if (!empty($startupScript)) {
-                file_put_contents($this->addonPath . '/start.sh', $startupScript);
-                chmod($this->addonPath . '/start.sh', 0755);
-            }
-        }
-    }
-
     private function generateDockerfile(): void
     {
         $allowUserEnv = $this->data['allow_user_env'] ?? false;
@@ -325,5 +337,16 @@ class FilesWriter extends FilesAbstract
             $haRepository->setMaintainer('HAOS Add-on Converter');
             file_put_contents($repoFile, $haRepository);
         }
+    }
+
+    private function getImageConfig(): array
+    {
+        $command = "crane config " . escapeshellarg($this->image) . " 2>&1";
+        $output = shell_exec($command);
+        $data = json_decode($output, true);
+        if (json_last_error() !== JSON_ERROR_NONE) {
+            throw new RuntimeException(json_last_error_msg());
+        }
+        return $data;
     }
 }

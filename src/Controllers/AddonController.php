@@ -3,10 +3,11 @@
 namespace App\Controllers;
 
 use App\Addon\{FilesReader, FilesWriter};
-use App\Generator\{Dockerfile, HaRepository};
+use App\Generator\{HaConfig, HaRepository};
 use App\Tools\{Bashio, Converter, Crane, Remover, Scripts};
 use Exception;
 use Psr\Http\Message\{ResponseInterface as Response, ServerRequestInterface as Request};
+use RuntimeException;
 
 class AddonController extends ControllerAbstract
 {
@@ -46,7 +47,7 @@ class AddonController extends ControllerAbstract
             $reader = new FilesReader($args['slug']);
             return $this->success($response, $reader->jsonSerialize());
         } catch (Exception $e) {
-            return $this->errorMessage($response, $e->getMessage());
+            return $this->errorMessage($response, $e);
         }
     }
 
@@ -125,13 +126,32 @@ class AddonController extends ControllerAbstract
         $body = (string)$request->getBody();
         $params = json_decode($body, true);
         $tag = $params['tag'] ?? 'latest';
-
+        $slug = $params['slug'] ?? null;
+        if(empty($slug)) {
+            return $this->errorMessage($response, new RuntimeException('Slug should not be empty'));
+        }
         try {
-            $addonFiles = new FilesWriter(Converter::selfConvert($tag));
-            $result = $addonFiles->create();
+            if ($slug === Converter::SLUG) {
+                // haos-addon-converter exists
+                try {
+                    $filesReader = new FilesReader($slug);
+                    $addonData = $filesReader->setImageTag($tag)->jsonSerialize();
+                } catch(Exception) {
+                    // catch: create new
+                    $addonData = Converter::selfConvert($tag);
+                }
+            } else {
+                // any other existing addon
+                $filesReader = new FilesReader($slug);
+                $addonData = $filesReader->setImageTag($tag)->jsonSerialize();
+            }
+//            return $this->debug($response, $addonData);
+            $filesWriter = new FilesWriter($addonData);
+            $filesWriter->increaseVersion();
+            $result = $filesWriter->create();
             return $this->success($response, $result);
-        } catch (Exception $exception) {
-            return $this->errorMessage($response, $exception->getMessage());
+        } catch (Exception $e) {
+            return $this->errorMessage($response, $e);
         }
     }
 
@@ -145,14 +165,14 @@ class AddonController extends ControllerAbstract
         $slug = $args['slug'];
 
         // System addon cannot be deleted
-        if ($slug === 'haos_addon_converter') {
+        if ($slug === Converter::SLUG) {
             return $this->errorMessage($response, 'System add-on cannot be deleted', 403);
         }
         try {
             Remover::removeAddon($slug);
             return $this->success($response, ['status' => 'success']);
         } catch (Exception $e) {
-            return $this->errorMessage($response, $e->getMessage());
+            return $this->errorMessage($response, $e);
         }
     }
 
@@ -166,7 +186,7 @@ class AddonController extends ControllerAbstract
             $image = $addon->getImage();
             $tag = $addon->getImageTag();
         } catch (Exception $e) {
-            return $this->errorMessage($response, $e->getMessage());
+            return $this->errorMessage($response, $e);
         }
 
         if (empty($image)) {
@@ -186,6 +206,7 @@ class AddonController extends ControllerAbstract
             'status'      => 'success',
             'has_update'  => false,
             'new_tag'     => null,
+            'slug'        => $slug,
             'image'       => $fullImage,
             'current_tag' => $tag
         ];
@@ -197,7 +218,7 @@ class AddonController extends ControllerAbstract
         foreach ($architectures as $arch) {
             $result['architectures'][] = [
                 'name' => $arch,
-                'lts'  => in_array($arch, \App\Generator\HaConfig::ARCHITECTURES_SUPPORTED_LONGTERM)
+                'lts'  => in_array($arch, HaConfig::ARCHITECTURES_SUPPORTED_LONGTERM)
             ];
         }
 

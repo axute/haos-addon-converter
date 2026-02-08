@@ -976,13 +976,13 @@ async function handleSettingsSubmit(e) {
     }
 }
 
-async function selfConvert(tag = 'latest') {
+async function selfConvert(slug, tag = 'latest') {
     haConfirm(`Do you want to export the HAOS Add-on Converter (Version: ${tag}) as a Home Assistant add-on? The internal version will be incremented automatically.`, async () => {
         try {
             const response = await fetch(`${basePath}/self-convert`, {
                 method: 'POST',
                 headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({tag: tag})
+                body: JSON.stringify({slug: slug, tag: tag})
             });
             const result = await response.json();
 
@@ -998,7 +998,7 @@ async function selfConvert(tag = 'latest') {
     }, 'Export Converter', 'Export');
 }
 
-async function loadTags() {
+async function loadTags(slug) {
     const list = document.getElementById('tagList');
     if (list.dataset.loaded === 'true') return;
 
@@ -1014,7 +1014,7 @@ async function loadTags() {
 
         tags.forEach(tag => {
             const li = document.createElement('li');
-            li.innerHTML = `<a class="dropdown-item" href="#" onclick="selfConvert('${tag}')">${tag}</a>`;
+            li.innerHTML = `<a class="dropdown-item" href="#" onclick="selfConvert('${slug}','${tag}')">${tag}</a>`;
             list.appendChild(li);
         });
         list.dataset.loaded = 'true';

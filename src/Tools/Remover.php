@@ -9,7 +9,7 @@ class Remover
     public static function removeAddon(string $slug): void
     {
         // System addon cannot be deleted
-        if ($slug === 'haos_addon_converter') {
+        if ($slug === Converter::SLUG) {
             throw new \RuntimeException('System add-on cannot be deleted');
         }
 

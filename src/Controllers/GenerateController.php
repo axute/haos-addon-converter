@@ -17,8 +17,8 @@ class GenerateController extends ControllerAbstract
             $addonFiles = new FilesWriter($data);
             $result = $addonFiles->create();
             return $this->success($response, $result);
-        } catch (\Exception $exception) {
-            return $this->errorMessage($response, $exception->getMessage());
+        } catch (\Exception $e) {
+            return $this->errorMessage($response, $e);
         }
     }
 

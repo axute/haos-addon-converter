@@ -276,4 +276,10 @@ class FilesReader extends FilesAbstract implements JsonSerializable
     {
         return $this->image_tag;
     }
+
+    public function setImageTag(string $tag): static
+    {
+        $this->image_tag = $tag;
+        return $this;
+    }
 }
