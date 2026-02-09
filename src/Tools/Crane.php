@@ -17,26 +17,26 @@ class Crane
             'major' => null
         ];
         if (!empty($allTags)) {
+            $currentVersion = Version::fromSemverTag($tag);
             // Wenn der aktuelle Tag eine Version ist (z.B. 1.2.3)
-            if (preg_match('/^v?(\d+)\.(\d+)(\.\d+)?(-.+)?$/', $tag, $currentMatches)) {
-                $major = $currentMatches[1];
-                $minor = $currentMatches[2];
+            if ($currentVersion !== null) {
 
-                foreach ($allTags as $t) {
-                    if (self::sameSchema($t, $tag) === false) {
+                foreach ($allTags as $foundTag) {
+                    if (self::sameSchema($foundTag, $tag) === false) {
                         continue;
                     }
-                    if (preg_match('/^v?(\d+)\.(\d+)(\.\d+)?(-.+)?$/', $t, $tMatches)) {
-                        if ($tMatches[1] == $major && $tMatches[2] == $minor) {
-                            if (version_compare($t, $tag, '>')) {
-                                $result['fix'] = $t;
+                    $foundVersion = Version::fromSemverTag($foundTag);
+                    if ($foundVersion !== null) {
+                        if ($foundVersion->major == $currentVersion->major && $foundVersion->minor == $currentVersion->minor) {
+                            if (version_compare($foundTag, $tag, '>')) {
+                                $result['fix'] = $foundTag;
                             }
-                        } else if ($tMatches[1] == $major) {
-                            if (version_compare($t, $tag, '>')) {
-                                $result['minor'] = $t;
+                        } else if ($foundVersion->major == $currentVersion->major) {
+                            if (version_compare($foundTag, $tag, '>')) {
+                                $result['minor'] = $foundTag;
                             }
-                        } else if ($tMatches[1] > $major) {
-                            $result['major'] = $t;
+                        } else if ($foundVersion->major > $currentVersion->major) {
+                            $result['major'] = $foundTag;
                         }
                     }
                 }
@@ -56,23 +56,22 @@ class Crane
         });
     }
 
-    protected static function sameSchema(string $tag1, string $tag2)
+    protected static function sameSchema(string $tag1, string $tag2): bool
     {
-        if (str_starts_with($tag1, 'v') && str_starts_with($tag2, 'v') === false) {
+        $str_starts_with_V1 = str_starts_with($tag1, 'v');
+        $str_starts_with_V2 = str_starts_with($tag2, 'v');
+        if ($str_starts_with_V1 !== $str_starts_with_V2) {
             return false;
         }
-        if (str_starts_with($tag1, 'v') === false && str_starts_with($tag2, 'v')) {
+        $version1 = Version::fromSemverTag($tag1);
+        $version2 = Version::fromSemverTag($tag2);
+        if($version1 === null || $version2 === null) {
+            return $version1 === $version2;
+        }
+        if($version1->buildMetadata !== $version2->buildMetadata) {
             return false;
         }
-        $match1 = preg_match('/^v?(\d+)\.(\d+)(\.\d+)?(-.+)?$/', $tag1, $parts1);
-        $match2 = preg_match('/^v?(\d+)\.(\d+)(\.\d+)?(-.+)?$/', $tag2, $parts2);
-        if ($match1 !== $match2) {
-            return false;
-        }
-        if (count($parts1) !== count($parts2)) {
-            return false;
-        }
-        if (count($parts1) === 5 && $parts1[4] !== $parts2[4]) {
+        if($version1->preRelease !== $version2->preRelease) {
             return false;
         }
         return true;
