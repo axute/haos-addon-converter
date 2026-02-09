@@ -55,6 +55,7 @@ jobs:
           git tag ${{ steps.git_cliff.outputs.tag }}
           git push origin ${{ steps.git_cliff.outputs.tag }}
       - name: Create Release
+        id: create_release
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
@@ -62,3 +63,10 @@ jobs:
           gh release create ${{ steps.git_cliff.outputs.tag }} \
             --title "${{ steps.release_name.outputs.name }}" \
             --notes-file RELEASE_NOTES.md
+
+  docker-publish:
+    needs: release
+    uses: ./.github/workflows/docker-publish.yml
+    permissions:
+      contents: read
+      packages: write
