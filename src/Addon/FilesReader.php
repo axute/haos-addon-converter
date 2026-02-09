@@ -249,6 +249,8 @@ class FilesReader extends FilesAbstract implements JsonSerializable
             'panel_admin'      => $this->config['panel_admin'] ?? true,
             'webui'            => $this->config['webui'] ?? '',
             'backup'           => $this->config['backup'] ?? 'disabled',
+            'timeout'          => $this->config['timeout'] ?? null,
+            'watchdog'         => $this->config['watchdog'] ?? '',
             'tmpfs'            => $tmpfs ?? (bool)($this->config['tmpfs'] ?? false),
             'detected_pm'      => $this->detectedPm,
             'has_local_icon'   => $this->iconFileContent !== null,

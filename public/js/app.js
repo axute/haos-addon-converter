@@ -117,6 +117,21 @@ document.addEventListener('DOMContentLoaded', () => {
     if (settingsForm) {
         settingsForm.addEventListener('submit', handleSettingsSubmit);
     }
+
+    // Watchdog UI toggle (show path only for http/https)
+    const watchdogProtocol = document.getElementById('watchdog_protocol');
+    const watchdogPortField = document.getElementById('watchdogPortField');
+    const watchdogHttpFields = document.getElementById('watchdogHttpFields');
+    const updateWatchdogUi = () => {
+        if (!watchdogProtocol) return;
+        const v = watchdogProtocol.value;
+        if (watchdogPortField) watchdogPortField.style.display = v ? 'block' : 'none';
+        if (watchdogHttpFields) watchdogHttpFields.style.display = (v === 'http' || v === 'https') ? 'block' : 'none';
+    };
+    if (watchdogProtocol) {
+        watchdogProtocol.addEventListener('change', updateWatchdogUi);
+        updateWatchdogUi();
+    }
 });
 
 // Helper: does detected PM support installing bash, jq and curl?
@@ -197,6 +212,18 @@ function startNew() {
 
     if (easyMDE) easyMDE.value('');
     if (startupScriptEditor) startupScriptEditor.setValue('');
+
+    // Reset Health fields
+    const timeoutInput = document.getElementById('timeout');
+    if (timeoutInput) timeoutInput.value = '';
+    const wdProto = document.getElementById('watchdog_protocol');
+    if (wdProto) wdProto.value = '';
+    const wdPort = document.getElementById('watchdog_port');
+    if (wdPort) wdPort.value = '';
+    const wdPath = document.getElementById('watchdog_path');
+    if (wdPath) wdPath.value = '';
+    const wdHttpFields = document.getElementById('watchdogHttpFields');
+    if (wdHttpFields) wdHttpFields.style.display = 'none';
 
     const urlInput = document.getElementById('url');
     if (urlInput) urlInput.value = '';
@@ -539,6 +566,23 @@ async function handleConverterSubmit(e) {
         env_vars: getEnvVars(),
         startup_script: startupScriptEditor.getValue(),
         privileged: getPrivileged(),
+        // Health
+        timeout: (document.getElementById('timeout') && document.getElementById('timeout').value !== '') ? parseInt(document.getElementById('timeout').value) : null,
+        watchdog: (function(){
+            const protoEl = document.getElementById('watchdog_protocol');
+            const portEl = document.getElementById('watchdog_port');
+            const pathEl = document.getElementById('watchdog_path');
+            const proto = protoEl ? protoEl.value : '';
+            const portVal = portEl ? portEl.value : '';
+            const pathVal = pathEl ? pathEl.value : '';
+            if (!proto || !portVal) return null;
+            const p = parseInt(portVal);
+            if (proto === 'tcp') {
+                return `tcp://[HOST]:[PORT:${p}]`;
+            }
+            const path = (pathVal && pathVal.startsWith('/')) ? pathVal : (pathVal ? '/' + pathVal : '/');
+            return `${proto}://[HOST]:[PORT:${p}]${path}`;
+        })(),
         feature_flags: {}
     };
 
@@ -698,6 +742,39 @@ async function editAddon(slug) {
 
     const webUiPathInput = document.getElementById('web_ui_path');
     if (webUiPathInput) webUiPathInput.value = webuiPath;
+
+    // Health
+    const timeoutField = document.getElementById('timeout');
+    if (timeoutField) timeoutField.value = (addon.timeout ?? '') === null ? '' : (addon.timeout ?? '');
+
+    const wdProtoSel = document.getElementById('watchdog_protocol');
+    const wdPortInput = document.getElementById('watchdog_port');
+    const wdPathInput = document.getElementById('watchdog_path');
+    const wdHttpFields2 = document.getElementById('watchdogHttpFields');
+
+    if (wdProtoSel && wdPortInput && wdPathInput) {
+        wdProtoSel.value = '';
+        wdPortInput.value = '';
+        wdPathInput.value = '';
+        if (addon.watchdog) {
+            let m = addon.watchdog.match(/^tcp:\/\/\[HOST]:\[PORT:(\d+)]$/);
+            if (m) {
+                wdProtoSel.value = 'tcp';
+                wdPortInput.value = m[1];
+                wdPathInput.value = '';
+            } else {
+                m = addon.watchdog.match(/^(\w+):\/\/\[HOST]:\[PORT:(\d+)](.*)$/);
+                if (m) {
+                    wdProtoSel.value = m[1];
+                    wdPortInput.value = m[2];
+                    wdPathInput.value = m[3] || '/';
+                }
+            }
+        }
+        if (wdHttpFields2) {
+            wdHttpFields2.style.display = (wdProtoSel.value === 'http' || wdProtoSel.value === 'https') ? 'block' : 'none';
+        }
+    }
 
     const backupDisabled = document.getElementById('backup_disabled');
     if (backupDisabled) backupDisabled.checked = true;

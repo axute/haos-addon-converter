@@ -78,6 +78,8 @@ class Converter
             'ingress'        => true,
             'ingress_port'   => 80,
             'ingress_entry'  => '/',
+            'timeout'        => 20,
+            'watchdog'       => 'http://[HOST]:[PORT:80]/',
             'ingress_stream' => false,
             'panel_icon'     => 'mdi:toy-brick',
             'panel_title'    => 'Addon Converter',

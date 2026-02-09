@@ -43,6 +43,8 @@ class HaConfig extends Yamlfile
     protected ?string $url = null;
     protected array $features = [];
     protected array $privileged = [];
+    protected ?int $timeout = null;
+    protected ?string $watchdog = null;
 
     public function __construct(protected string $name, protected string $version, protected string $slug, protected string $description, protected array $architectures = self::ARCHITECTURES)
     {
@@ -151,6 +153,18 @@ class HaConfig extends Yamlfile
         return $this;
     }
 
+    public function setTimeout(?int $timeout): static
+    {
+        $this->timeout = $timeout;
+        return $this;
+    }
+
+    public function setWatchdog(?string $watchdog): static
+    {
+        $this->watchdog = $watchdog;
+        return $this;
+    }
+
     public function jsonSerialize(): array
     {
         $config = [];
@@ -169,6 +183,12 @@ class HaConfig extends Yamlfile
         }
         if ($this->backup !== null) {
             $config['backup'] = $this->backup;
+        }
+        if ($this->timeout !== null) {
+            $config['timeout'] = $this->timeout;
+        }
+        if ($this->watchdog !== null && $this->watchdog !== '') {
+            $config['watchdog'] = $this->watchdog;
         }
         if (count($this->environment) > 0) {
             $config['environment'] = $this->environment;

@@ -273,9 +273,9 @@
                                     </span>
                                 </label>
                                 <select class="form-select" id="bashio_version">
-                                    <option value="" selected disabled>Lade Versionen...</option>
+                                    <option value="" selected disabled>Loading versions...</option>
                                 </select>
-                                <div class="form-text">Wird als <code>HAOS_CONVERTER_BASHIO_VERSION</code> übergeben.</div>
+                                <div class="form-text">Will be passed as <code>HAOS_CONVERTER_BASHIO_VERSION</code>.</div>
                             </div>
                             <label for="startup_script" class="form-label">Custom Startup Script (run.sh)</label>
                             <textarea id="startup_script"></textarea>
@@ -285,11 +285,54 @@
                 </div>
             </div>
 
-            <!-- Section 5: Feature Flags -->
+            <!-- Section 5: Health -->
+            <div class="accordion-item">
+                <h2 class="accordion-header">
+                    <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseHealth">
+                        5. Health
+                    </button>
+                </h2>
+                <div id="collapseHealth" class="accordion-collapse collapse" data-bs-parent="#formAccordion">
+                    <div class="accordion-body">
+                        <div class="row g-3">
+                            <div class="col-md-4">
+                                <label for="timeout" class="form-label">Timeout (seconds)</label>
+                                <input type="number" min="0" class="form-control" id="timeout" placeholder="10">
+                                <div class="form-text">Default is 10 seconds. Leave empty to use the default.</div>
+                            </div>
+                        </div>
+                        <hr/>
+                        <div class="row g-3">
+                            <div class="col-md-3">
+                                <label for="watchdog_protocol" class="form-label">Watchdog Protocol</label>
+                                <select class="form-select" id="watchdog_protocol">
+                                    <option value="" selected>– Off –</option>
+                                    <option value="http">http</option>
+                                    <option value="https">https</option>
+                                    <option value="tcp">tcp</option>
+                                </select>
+                                <div class="form-text">Supports http/https (with path) or tcp (port only).</div>
+                            </div>
+                            <div class="col-md-3" id="watchdogPortField" style="display:none;">
+                                <label for="watchdog_port" class="form-label">Port</label>
+                                <input type="number" min="1" max="65535" class="form-control" id="watchdog_port" placeholder="80">
+                            </div>
+                            <div class="col-md-6" id="watchdogHttpFields" style="display:none;">
+                                <label for="watchdog_path" class="form-label">Path (http/https only)</label>
+                                <input type="text" class="form-control" id="watchdog_path" placeholder="/">
+                                <div class="form-text">Example: <code>/health</code> or <code>/status</code>. Will be appended to the URL.</div>
+                            </div>
+                        </div>
+                        <div class="form-text mt-2"><span class="mdi mdi-information-outline"></span> Note: The watchdog format in Home Assistant is e.g. <code>http://[HOST]:[PORT:8080]/health</code> or <code>tcp://[HOST]:[PORT:80]</code>.</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Section 6: Feature Flags -->
             <div class="accordion-item">
                 <h2 class="accordion-header">
                     <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseFeatures">
-                        5. Feature Flags
+                        6. Feature Flags
                     </button>
                 </h2>
                 <div id="collapseFeatures" class="accordion-collapse collapse" data-bs-parent="#formAccordion">

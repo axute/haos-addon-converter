@@ -261,6 +261,14 @@ class FilesWriter extends FilesAbstract
             $haConfig->setPrivileged($this->data['privileged']);
         }
 
+        // Health settings
+        if (isset($this->data['timeout']) && $this->data['timeout'] !== null && $this->data['timeout'] !== '') {
+            $haConfig->setTimeout((int)$this->data['timeout']);
+        }
+        if (!empty($this->data['watchdog'])) {
+            $haConfig->setWatchdog($this->data['watchdog']);
+        }
+
         file_put_contents($this->addonPath . '/' . HaConfig::FILENAME, $haConfig);
         return $this;
     }

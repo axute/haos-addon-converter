@@ -12,6 +12,7 @@ This tool is a web-based converter that transforms any Docker image into a Home 
 - **Smart Container Conversion**: Automatically detects entrypoints, architectures, and package managers using `crane`.
 - **Flexible Configuration**: Support for environment variables (static, editable, and user-defined).
 - **Home Assistant Native**: Full integration with Ingress, Side Panels, Backups, and Storage Mappings.
+- **Health Monitoring**: Integrated support for Docker timeouts and Home Assistant Watchdog (HTTP/HTTPS/TCP).
 - **Advanced Quirks Mode**: Optional wrapper for custom startup scripts and enhanced shell support.
 - **Automated Updates**: One-click updates for base images with version detection.
 
