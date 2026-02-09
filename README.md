@@ -16,6 +16,9 @@ This tool is a web-based converter that transforms any Docker image into a Home 
 - **Advanced Quirks Mode**: Optional wrapper for custom startup scripts and enhanced shell support.
 - **Automated Updates**: One-click updates for base images with version detection.
 
+### 💡 Note on Terminology
+In the Home Assistant ecosystem, "Add-ons" are increasingly referred to as "Apps". While this tool primarily uses the term "Add-on" to align with the underlying Supervisor infrastructure and technical configuration (e.g., `config.yaml`), it is fully compatible with what is now often called Home Assistant Apps.
+
 Detailed information about all supported Home Assistant configuration options and features can be found in our **[Supported Features Documentation](docs/SupportedFeatures.md)**.
 
 ## Prerequisites
