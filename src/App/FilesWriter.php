@@ -296,6 +296,7 @@ class FilesWriter extends FilesAbstract
                 $iconData = base64_decode($iconData);
                 if ($iconData !== false) {
                     file_put_contents($this->appPath . '/icon.png', $iconData);
+                    file_put_contents($this->appPath . '/logo.png', $iconData); # bug on local apps
                 } else {
                     throw new InvalidArgumentException('Could not decode base64');
                 }
