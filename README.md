@@ -31,7 +31,7 @@ Detailed information about all supported Home Assistant configuration options an
 ### Option 1: With Docker (Recommended)
 You can use the pre-built image from GHCR:
 ```bash
-docker run -d -p 8985:80 -v $(pwd)/data:/var/www/html/data ghcr.io/axute/haos-addon-converter:latest
+docker run -d -p 8985:80 -v $(pwd)/data:/var/www/html/data ghcr.io/axute/haos-app-converter:latest
 ```
 
 ### Option 2: Home Assistant Add-on
@@ -51,7 +51,7 @@ You can also use this converter as a Home Assistant add-on by adding the followi
 
 ## Project Structure
 
-Generated add-ons are created in the `/data/{addon-slug}` directory. Each directory contains all necessary files like `config.yaml`, `Dockerfile`, and `README.md`.
+Generated add-ons are created in the `/data/{app-slug}` directory. Each directory contains all necessary files like `config.yaml`, `Dockerfile`, and `README.md`.
 
 For a full list of generated files and their purpose, please refer to the **[Supported Features Documentation](docs/SupportedFeatures.md)**.
 

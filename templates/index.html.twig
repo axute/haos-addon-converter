@@ -1,12 +1,12 @@
 {% extends 'layout.html.twig' %}
 
 {% block content %}
-<div id="addonSelection" class="mb-4">
+<div id="appSelection" class="mb-4">
     <div class="ha-card">
         <div class="ha-card-header">
             <span>Existing Add-ons</span>
         </div>
-        <div id="addonContainer" hx-get="{{ basePath }}/fragments/addon-list" hx-trigger="load, reload from:body" hx-swap="innerHTML">
+        <div id="appContainer" hx-get="{{ basePath }}/fragments/app-list" hx-trigger="load, reload from:body" hx-swap="innerHTML">
             <div class="list-group-item d-flex justify-content-center p-4">
                 <div class="spinner-border text-primary" role="status"></div>
                 <span class="ms-2">Loading add-ons...</span>
