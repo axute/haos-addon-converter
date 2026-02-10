@@ -1069,7 +1069,7 @@ async function loadTags(slug) {
     if (list.dataset.loaded === 'true') return;
 
     try {
-        const response = await fetch(`${basePath}/tags`);
+        const response = await fetch(`${basePath}/converter/tags`);
         const tags = await response.json();
 
         const header = list.querySelector('.dropdown-header');

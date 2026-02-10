@@ -12,6 +12,7 @@ class Converter
     public const string DEFAULT_REPOSITORY_NAME = 'My HAOS App Repository';
     public const string PUBLIC_IMAGE_NAME = 'ghcr.io/axute/haos-app-converter';
     public const string SLUG = 'haos_app_converter';
+
     public static function getTags(): array
     {
         return Crane::getTags(self::PUBLIC_IMAGE_NAME);
@@ -31,7 +32,8 @@ class Converter
         // Daten für die Generierung vorbereiten
         $data = [
             'name'           => 'HAOS App Converter',
-            'image'          => self::PUBLIC_IMAGE_NAME . ":" . $tag,
+            'image'          => self::PUBLIC_IMAGE_NAME,
+            'image_tag'      => $tag,
             'description'    => 'Web-Converter zum Konvertieren von Docker-Images in Home Assistant Apps.',
             'version'        => $currentVersion,
             'url'            => 'https://github.com/axute/haos-app-converter',
