@@ -14,7 +14,7 @@
             {% set isSelf = (app.slug == 'haos_app_converter') %}
             <div class="list-group-item">
                 <div class="row align-items-center g-3">
-                    <div class="col-12 col-md-auto">
+                    <div class="col-12 col-lg-auto">
                         <div class="d-flex align-items-center">
                             <div class="me-3 text-center" style="width: 40px; font-size: 24px;">
                                 {% if app.has_local_icon %}
@@ -39,7 +39,7 @@
                         </div>
                     </div>
 
-                    <div class="col-12 col-md">
+                    <div class="col-12 col-lg">
                         <div class="d-flex align-items-center flex-wrap">
                             <small class="text-muted me-2">Image: <a href="{{ app.image_url }}" target="_blank" class="text-decoration-none"><code>{{ app.image }}:{{ app.image_tag }}</code></a></small>
                             <div id="update-status-{{ app.slug }}"
@@ -55,11 +55,11 @@
                         </div>
                     </div>
 
-                    <div class="col-12 col-md-auto text-md-end">
+                    <div class="col-12 col-lg-auto text-lg-end">
                         {% if isSelf %}
                             <span class="badge bg-secondary rounded-pill">System</span>
                         {% else %}
-                            <div class="d-flex align-items-center justify-content-between justify-content-md-end flex-wrap gap-2">
+                            <div class="d-flex align-items-center justify-content-between justify-content-lg-end flex-wrap gap-2">
                                 <div class="form-check form-switch mb-0">
                                     <input class="form-check-input me-1" type="checkbox" id="vf_{{ app.slug }}" {% if app.version_fixation %}checked{% endif %}
                                            onchange="toggleVersionFixation('{{ app.slug }}', this.checked)">
