@@ -206,6 +206,23 @@ function haConfirm(message, onConfirm, title = 'Confirm', confirmText = 'OK', co
     modal.show();
 }
 
+function haAlert(message, title = 'Info') {
+    const modalEl = document.getElementById('haAlertModal');
+    if (!modalEl) {
+        alert(message);
+        return;
+    }
+
+    const titleEl = document.getElementById('haAlertTitle');
+    const messageEl = document.getElementById('haAlertMessage');
+
+    if (titleEl) titleEl.innerText = title;
+    if (messageEl) messageEl.innerHTML = message;
+
+    const modal = bootstrap.Modal.getOrCreateInstance(modalEl);
+    modal.show();
+}
+
 function resetAccordion() {
     const accordionItems = document.querySelectorAll('#formAccordion .accordion-collapse');
     accordionItems.forEach((item, index) => {
@@ -325,10 +342,10 @@ async function deleteApp(slug) {
                     await loadApps();
                 }
             } else {
-                alert('Error during deletion: ' + result.message);
+                haAlert('Error during deletion: ' + result.message, 'Error');
             }
         } catch (error) {
-            alert('An error occurred: ' + error.message);
+            haAlert('An error occurred: ' + error.message, 'Error');
         }
     }, 'Delete App', 'Delete', 'btn-danger');
 }
@@ -544,7 +561,7 @@ async function fetchImageTags() {
     } catch (e) {
         console.error('Error fetching tags', e);
         datalist.innerHTML = '';
-        alert('Failed to fetch tags for image: ' + image);
+        haAlert('Failed to fetch tags for image: ' + image, 'Error');
     } finally {
         btn.disabled = false;
         loader.style.display = 'none';
@@ -665,7 +682,7 @@ async function handleConverterSubmit(e) {
             if (appSelection) appSelection.style.display = 'block';
         }, 3000);
     } else {
-        alert('Error: ' + result.message);
+        haAlert('Error: ' + result.message, 'Error');
     }
 }
 
@@ -1094,13 +1111,13 @@ async function selfConvert(slug, tag = 'latest') {
             const result = await response.json();
 
             if (result.status === 'success') {
-                alert('App successfully created in: ' + result.path);
+                haAlert(`App successfully created in: <br><code>${result.path}</code>`, 'Success');
                 document.body.dispatchEvent(new Event('reload'));
             } else {
-                alert('Error: ' + result.message);
+                haAlert('Error: ' + result.message, 'Error');
             }
         } catch (e) {
-            alert('An error occurred: ' + e.message);
+            haAlert('An error occurred: ' + e.message, 'Error');
         }
     }, 'Export Converter', 'Export');
 }
