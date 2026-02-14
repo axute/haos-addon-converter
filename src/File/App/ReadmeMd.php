@@ -26,7 +26,7 @@ class ReadmeMd extends FileAbstract
 
     public function saveFileContent(): static
     {
-        if(!empty(trim($this->long_description))) {
+        if(!empty(trim($this->long_description ?? ''))) {
             Converter::writeFileContent($this->getFilePath(), $this);
             return $this;
         }
