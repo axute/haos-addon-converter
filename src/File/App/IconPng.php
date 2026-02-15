@@ -27,7 +27,8 @@ class IconPng extends FileAbstract
     public function jsonSerialize(): array
     {
         return [
-            'icon_file' => $this->icon_file
+            'icon_file'      => $this->icon_file,
+            'has_local_icon' => $this->isFile()
         ];
     }
 
